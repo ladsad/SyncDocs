@@ -9,5 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial project scaffolding for backend (FastAPI) and frontend (React).
-- CI/CD pipeline planning.
 - Technical Design Document detailing Operational Transformation and Architecture.
+- CI/CD pipeline using GitHub Actions for formatting, linting, and testing.
+- Core database schema (Users, Documents, Operations) using PostgreSQL and SQLAlchemy.
+- Backend test suites for database models.

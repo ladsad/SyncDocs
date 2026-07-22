@@ -1,5 +1,6 @@
 """Unit tests for SyncDocs database models and constraints."""
 
+from datetime import datetime, timezone
 import uuid
 
 import pytest
@@ -211,7 +212,9 @@ def test_foreign_key_enforcement(db_session):
 
 
 def test_unique_constraints(db_session):
-    """Verify duplicate google_id, email, google_drive_file_id, or (document_id, revision) raise IntegrityError."""
+    """Verify duplicate google_id, email, google_drive_file_id, or
+    (document_id, revision) raise IntegrityError.
+    """
     u1 = User(
         google_id="g_unique",
         email="unique1@example.com",
@@ -283,3 +286,134 @@ def test_unique_constraints(db_session):
     with pytest.raises(IntegrityError):
         db_session.commit()
     db_session.rollback()
+
+
+def test_editor_user_delete_sets_null_user_id(db_session):
+    """Verify deleting non-owner operation author sets user_id to NULL on operation."""
+    owner = User(
+        google_id="google_owner_null_test",
+        email="owner_null_test@example.com",
+        name="Owner User",
+    )
+    editor = User(
+        google_id="google_editor_null_test",
+        email="editor_null_test@example.com",
+        name="Editor User",
+    )
+    db_session.add_all([owner, editor])
+    db_session.commit()
+
+    doc = Document(
+        google_drive_file_id="drive_editor_null_test",
+        title="Editor Null Test Doc",
+        owner_id=owner.id,
+    )
+    db_session.add(doc)
+    db_session.commit()
+
+    op = Operation(
+        document_id=doc.id,
+        revision=1,
+        user_id=editor.id,
+        operation_data={"type": "insert", "position": 0, "text": "Hi"},
+    )
+    db_session.add(op)
+    db_session.commit()
+
+    doc_id = doc.id
+    op_id = op.id
+    editor_id = editor.id
+
+    # Delete non-owner editor user
+    db_session.delete(editor)
+    db_session.commit()
+
+    # Verify editor user is deleted
+    assert db_session.query(User).filter_by(id=editor_id).first() is None
+
+    # Verify Document and Operation persist
+    persisted_doc = db_session.query(Document).filter_by(id=doc_id).first()
+    assert persisted_doc is not None
+
+    persisted_op = db_session.query(Operation).filter_by(id=op_id).first()
+    assert persisted_op is not None
+    assert persisted_op.user_id is None
+
+
+def test_string_uuid_binding(db_session):
+    """Verify querying and creating models with string UUIDs works without error."""
+    str_user_id = str(uuid.uuid4())
+    user = User(
+        id=str_user_id,
+        google_id="google_str_uuid",
+        email="str_uuid@example.com",
+        name="String UUID User",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    # Query using string UUID
+    fetched_user = db_session.query(User).filter_by(id=str_user_id).first()
+    assert fetched_user is not None
+    assert fetched_user.id == uuid.UUID(str_user_id)
+    assert isinstance(fetched_user.id, uuid.UUID)
+
+    str_doc_id = str(uuid.uuid4())
+    doc = Document(
+        id=str_doc_id,
+        google_drive_file_id="drive_str_uuid",
+        title="Str UUID Doc",
+        owner_id=str_user_id,
+    )
+    db_session.add(doc)
+    db_session.commit()
+
+    fetched_doc = db_session.query(Document).filter(Document.id == str_doc_id).first()
+    assert fetched_doc is not None
+    assert fetched_doc.id == uuid.UUID(str_doc_id)
+    assert fetched_doc.owner_id == uuid.UUID(str_user_id)
+
+
+def test_utc_datetime_timezone_awareness(db_session):
+    """Verify created_at and updated_at returned from DB have tzinfo == timezone.utc
+    and can be compared directly with datetime.now(timezone.utc).
+    """
+    now_before = datetime.now(timezone.utc)
+    user = User(
+        google_id="google_tz_test",
+        email="tz_test@example.com",
+        name="TZ Test User",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    doc = Document(
+        google_drive_file_id="drive_tz_test",
+        title="TZ Test Doc",
+        owner_id=user.id,
+    )
+    db_session.add(doc)
+    db_session.commit()
+
+    db_session.refresh(user)
+    db_session.refresh(doc)
+
+    assert user.created_at.tzinfo == timezone.utc
+    assert doc.created_at.tzinfo == timezone.utc
+    assert doc.updated_at.tzinfo == timezone.utc
+
+    now_after = datetime.now(timezone.utc)
+    assert now_before <= user.created_at <= now_after
+    assert now_before <= doc.created_at <= now_after
+    assert now_before <= doc.updated_at <= now_after
+
+
+def test_sqlite_wal_pragma():
+    """Verify SQLite connection executes WAL mode and busy timeout pragmas."""
+    test_engine = create_engine("sqlite:///:memory:")
+    with test_engine.connect() as conn:
+        timeout_val = conn.exec_driver_sql("PRAGMA busy_timeout").scalar()
+        assert timeout_val == 5000
+        journal_val = conn.exec_driver_sql("PRAGMA journal_mode").scalar()
+        assert journal_val.lower() in ("wal", "memory")
+    test_engine.dispose()

@@ -1,2 +1,9 @@
 .agents
 .env
+.venv/
+__pycache__/
+node_modules/
+*.db
+*.db-shm
+*.db-wal
+.coverage

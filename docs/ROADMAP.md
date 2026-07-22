@@ -1,12 +1,12 @@
 # SyncDocs Development Roadmap
 
-## Phase 1: Foundation (Current)
+## Phase 1: Foundation (Completed)
 - [x] Initial project scaffolding
 - [x] Technical Design Document
-- [ ] CI/CD Pipeline setup (GitHub Actions)
-- [ ] Core database schema implementation
+- [x] CI/CD Pipeline setup (GitHub Actions)
+- [x] Core database schema implementation
 
-## Phase 2: Core API & Google Integration
+## Phase 2: Core API & Google Integration (Current)
 - [ ] Google Workspace OAuth integration
 - [ ] REST API for Document CRUD
 - [ ] Google Drive file metadata synchronization

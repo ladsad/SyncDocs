@@ -1,0 +1,14 @@
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --cov=app"
+testpaths = [
+    "tests",
+]
+pythonpath = [
+    "."
+]
