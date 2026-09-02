@@ -15,3 +15,6 @@
   Realtime), Yjs for CRDT sync, deployed on Vercel. No paid services.
 - Follow the phased build order in architecture.md Section 7 — don't
   jump ahead to encryption/sync before the current phase's scope is done.
+- Documentation & History: Maintain `docs/project-log.md` with every phase
+  advancement or major architectural decision (Timeline + ADRs). Keep git
+  history clean and commit logically as milestones are completed.
