@@ -27,3 +27,14 @@ create trigger set_documents_updated_at
 before update on documents
 for each row
 execute function update_updated_at_column();
+
+-- Enable Row Level Security (RLS)
+alter table public.documents enable row level security;
+
+-- Phase 0 open access policy (will be replaced with user-based policies in Phase 3)
+drop policy if exists "Allow all access in Phase 0 (no auth)" on public.documents;
+create policy "Allow all access in Phase 0 (no auth)"
+on public.documents
+for all
+using (true)
+with check (true);
