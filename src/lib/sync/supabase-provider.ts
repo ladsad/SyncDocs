@@ -118,7 +118,7 @@ export class SupabaseYjsProvider {
           }
 
           // If the request was marked as initial handshake, send our state vector back so both sides sync
-          if (payload.initiator) {
+          if (payload.initiator && this.channel && this.isConnected) {
             const ourStateVector = Y.encodeStateVector(this.doc);
             this.channel.send({
               type: "broadcast",
