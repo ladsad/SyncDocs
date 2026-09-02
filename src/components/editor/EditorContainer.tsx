@@ -2,14 +2,31 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import * as Y from "yjs";
 import { Document, SaveStatus } from "@/types/document";
-import { updateDocument, isSupabaseConfigured } from "@/lib/supabase";
+import { updateDocument, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { RichTextEditor } from "./RichTextEditor";
 import { StatusBadge } from "../ui/StatusBadge";
-import { ArrowLeft, Save, Database, HardDrive } from "lucide-react";
+import { SupabaseYjsProvider } from "@/lib/sync/supabase-provider";
+import { getRandomUserPresence } from "@/lib/sync/user-presence";
+import {
+  ArrowLeft,
+  Save,
+  Database,
+  HardDrive,
+  Users,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 
 interface EditorContainerProps {
   initialDocument: Document;
+}
+
+interface CollaboratorInfo {
+  clientId: number;
+  name: string;
+  color: string;
 }
 
 export function EditorContainer({ initialDocument }: EditorContainerProps) {
@@ -17,10 +34,54 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const [title, setTitle] = useState(initialDocument.title);
   const [content, setContent] = useState(initialDocument.content);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const [collaborators, setCollaborators] = useState<CollaboratorInfo[]>([]);
+  const [isSyncConnected, setIsSyncConnected] = useState(false);
+
+  const [currentUser] = useState(() => getRandomUserPresence());
+  const [provider, setProvider] = useState<SupabaseYjsProvider | null>(null);
+
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstRender = useRef(true);
-
   const isSupabase = isSupabaseConfigured();
+
+  // Initialize Yjs Document and Supabase Provider
+  useEffect(() => {
+    const ydoc = new Y.Doc();
+    const yProvider = new SupabaseYjsProvider(supabase, doc.id, ydoc);
+    setProvider(yProvider);
+
+    // Set local awareness presence
+    yProvider.awareness.setLocalStateField("user", currentUser);
+
+    const unsubscribeStatus = yProvider.onStatus(({ connected }) => {
+      setIsSyncConnected(connected);
+    });
+
+    const updateCollaborators = () => {
+      const states = yProvider.awareness.getStates();
+      const active: CollaboratorInfo[] = [];
+
+      states.forEach((state: any, clientId: number) => {
+        if (state?.user) {
+          active.push({
+            clientId,
+            name: state.user.name || "Collaborator",
+            color: state.user.color || "#3b82f6",
+          });
+        }
+      });
+      setCollaborators(active);
+    };
+
+    yProvider.awareness.on("change", updateCollaborators);
+    updateCollaborators();
+
+    return () => {
+      unsubscribeStatus();
+      yProvider.awareness.off("change", updateCollaborators);
+      yProvider.destroy();
+    };
+  }, [doc.id, currentUser]);
 
   const performSave = useCallback(
     async (newTitle: string, newContent: any) => {
@@ -107,6 +168,8 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
           <RichTextEditor
             initialContent={content}
             onChange={handleContentChange}
+            provider={provider}
+            userPresence={currentUser}
           />
         );
       case "markdown":
@@ -128,7 +191,7 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top Navigation Bar */}
       <header className="border-b border-slate-200 bg-white sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <Link
               href="/"
@@ -148,13 +211,52 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Live Sync Status & Active Collaborators */}
+            {isSupabase && (
+              <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                <div
+                  className="flex items-center gap-1 font-medium"
+                  title={isSyncConnected ? "Realtime sync connected" : "Connecting to sync room..."}
+                >
+                  {isSyncConnected ? (
+                    <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+                  ) : (
+                    <WifiOff className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                  )}
+                  <span className="hidden md:inline">
+                    {isSyncConnected ? "Live Sync" : "Connecting..."}
+                  </span>
+                </div>
+
+                <div className="w-px h-3.5 bg-slate-300" />
+
+                {/* Collaborator Avatars */}
+                <div className="flex items-center gap-1" title={`${collaborators.length} active in room`}>
+                  <Users className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="font-semibold text-slate-700">{collaborators.length}</span>
+                  <div className="hidden sm:flex items-center -space-x-1.5 ml-1">
+                    {collaborators.map((c) => (
+                      <span
+                        key={c.clientId}
+                        style={{ backgroundColor: c.color }}
+                        className="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-white uppercase shadow-sm"
+                        title={c.name}
+                      >
+                        {c.name.replace("Guest ", "").charAt(0)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Storage Mode indicator */}
             <div
-              className="hidden sm:flex items-center gap-1 text-xs text-slate-500 px-2 py-1 bg-slate-100 rounded"
+              className="hidden lg:flex items-center gap-1 text-xs text-slate-500 px-2 py-1 bg-slate-100 rounded"
               title={
                 isSupabase
                   ? "Connected to Supabase Postgres"
-                  : "Using Local Storage (Configure Supabase in .env.local to persist remotely)"
+                  : "Using Local Storage"
               }
             >
               {isSupabase ? (

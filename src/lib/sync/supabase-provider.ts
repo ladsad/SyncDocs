@@ -1,5 +1,5 @@
 import * as Y from "yjs";
-import { awarenessProtocol } from "y-protocols";
+import * as awarenessProtocol from "y-protocols/awareness";
 import { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 
 export function uint8ArrayToBase64(bytes: Uint8Array): string {

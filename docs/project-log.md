@@ -10,7 +10,7 @@ A living record of the development timeline, key architectural decisions (ADRs),
 |---|---|---|---|
 | **2026-09-02** | **Project Kickoff & Architecture** | Defined core architecture, zero-knowledge privacy guarantees, content-type plugin model, and phased roadmap in `docs/architecture.md` and `docs/project-description.md`. | Completed |
 | **2026-09-02** | **Phase 0: Scaffold & Single-User Editor** | Built Next.js (App Router) + TypeScript + Tailwind scaffold. Implemented Tiptap WYSIWYG Rich Text editor with full formatting toolbar, debounced auto-save, document list dashboard, and Supabase Postgres schema (`supabase/schema.sql`) with local fallback. | Completed |
-| *Upcoming* | **Phase 1: Real-Time Sync (No E2EE)** | Wire Yjs CRDT with Supabase Realtime broadcast channels for live multi-cursor collaboration. | Planned |
+| **2026-09-02** | **Phase 1: Real-Time Sync (No E2EE)** | Integrated Yjs CRDT with Tiptap via Supabase Realtime broadcast channels (`doc-room:<id>`). Implemented remote awareness for multi-cursor and selection synchronization. | Completed |
 | *Upcoming* | **Phase 2: End-to-End Encryption (E2EE)** | User keypairs (X25519), Document Keys (AES-GCM), wrapped key management, and ciphertext-only transport/storage. | Planned |
 | *Upcoming* | **Phase 3: Sharing & Roles** | Invite flows, permission model (owner/editor/viewer), wrapped DK distribution. | Planned |
 | *Upcoming* | **Phase 4: Multi-Style Editing Surfaces** | Markdown (CodeMirror + live preview), LaTeX (CodeMirror + Tier 1 WASM compiler / Tier 2 Local Agent). | Planned |
@@ -45,6 +45,11 @@ A living record of the development timeline, key architectural decisions (ADRs),
 ### ADR-005: Supabase Postgres Persistence with Resilient Local Fallback (Phase 0)
 - **Context:** Need quick, frictionless development testing of editor mechanics before connecting live Supabase instances.
 - **Decision:** Store document records with `id`, `title`, `content_type`, and `content` JSONB. If Supabase environment variables are unset, gracefully fall back to browser `localStorage` with a clear UI banner, enabling instant local testing.
+- **Status:** Accepted.
+
+### ADR-006: Supabase Realtime Broadcast as Stateless Transport Provider
+- **Context:** Real-time collaboration needs low-latency message passing between peers without deploying a dedicated WebSocket server ($0 cost target).
+- **Decision:** Build a custom `SupabaseYjsProvider` utilizing Supabase Realtime Broadcast channels. Broadcast channels forward Base64-encoded Yjs binary diffs and Awareness state without parsing content on the server.
 - **Status:** Accepted.
 
 ---

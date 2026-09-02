@@ -1,53 +1,101 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Collaboration from "@tiptap/extension-collaboration";
+import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import { EditorToolbar } from "./EditorToolbar";
+import { SupabaseYjsProvider } from "@/lib/sync/supabase-provider";
 
 interface RichTextEditorProps {
   initialContent: any;
   onChange: (content: any) => void;
+  provider?: SupabaseYjsProvider | null;
+  userPresence?: {
+    name: string;
+    color: string;
+  };
   editable?: boolean;
 }
 
 export function RichTextEditor({
   initialContent,
   onChange,
+  provider,
+  userPresence,
   editable = true,
 }: RichTextEditorProps) {
-  const editor = useEditor({
-    extensions: [
+  const extensions = useMemo(() => {
+    if (provider) {
+      return [
+        StarterKit.configure({
+          history: false, // Collaborative history handled by Yjs
+          heading: {
+            levels: [1, 2, 3],
+          },
+        }),
+        Collaboration.configure({
+          document: provider.doc,
+        }),
+        CollaborationCursor.configure({
+          provider: provider,
+          user: userPresence || {
+            name: "Anonymous",
+            color: "#2563eb",
+          },
+        }),
+      ];
+    }
+
+    return [
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3],
         },
       }),
-    ],
-    content: initialContent,
-    editable,
-    immediatelyRender: false,
-    onUpdate: ({ editor }) => {
-      onChange(editor.getJSON());
-    },
-    editorProps: {
-      attributes: {
-        class:
-          "prose max-w-none focus:outline-none min-h-[500px] p-6 text-slate-800",
+    ];
+  }, [provider, userPresence]);
+
+  const editor = useEditor(
+    {
+      extensions,
+      content: provider ? undefined : initialContent,
+      editable,
+      immediatelyRender: false,
+      onUpdate: ({ editor }) => {
+        onChange(editor.getJSON());
+      },
+      editorProps: {
+        attributes: {
+          class:
+            "prose max-w-none focus:outline-none min-h-[500px] p-6 text-slate-800",
+        },
       },
     },
-  });
+    [extensions]
+  );
 
-  // Sync if initialContent changes externally (e.g. initial fetch loads)
+  // If running with provider and Y.Doc is brand new, populate it with initialContent
   useEffect(() => {
-    if (editor && initialContent && !editor.isFocused) {
+    if (editor && provider && initialContent) {
+      const fragment = provider.doc.getXmlFragment("default");
+      if (fragment.length === 0 && editor.isEmpty) {
+        editor.commands.setContent(initialContent, false);
+      }
+    }
+  }, [editor, provider, initialContent]);
+
+  // Sync if initialContent changes in single-user mode
+  useEffect(() => {
+    if (editor && !provider && initialContent && !editor.isFocused) {
       const currentJSON = JSON.stringify(editor.getJSON());
       const incomingJSON = JSON.stringify(initialContent);
       if (currentJSON !== incomingJSON) {
         editor.commands.setContent(initialContent, false);
       }
     }
-  }, [initialContent, editor]);
+  }, [initialContent, editor, provider]);
 
   if (!editor) {
     return (
