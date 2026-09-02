@@ -52,6 +52,11 @@ A living record of the development timeline, key architectural decisions (ADRs),
 - **Decision:** Build a custom `SupabaseYjsProvider` utilizing Supabase Realtime Broadcast channels. Broadcast channels forward Base64-encoded Yjs binary diffs and Awareness state without parsing content on the server.
 - **Status:** Accepted.
 
+### ADR-007: Yjs State Snapshot Baseline & Two-Way Sync Handshake
+- **Context:** Concurrent client initialization caused duplicated text when initializing `Y.Doc` instances from raw JSON independently, and initial handshake messages lacked reciprocal state vector exchanges.
+- **Decision:** Persist binary CRDT state (`yjs_state`) snapshots directly to Postgres and restore synchronously on mount. Enforce reciprocal two-way `sync-step-1` state vector exchanges and update queueing during channel subscription.
+- **Status:** Accepted.
+
 ---
 
 ## 3. Maintenance Guidelines
