@@ -6,6 +6,7 @@ create table if not exists documents (
   title text not null default 'Untitled Document',
   content_type text not null default 'rich_text',
   content jsonb not null default '{"type":"doc","content":[{"type":"paragraph"}]}'::jsonb,
+  yjs_state text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

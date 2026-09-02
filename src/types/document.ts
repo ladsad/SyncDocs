@@ -5,6 +5,7 @@ export interface Document {
   title: string;
   content_type: DocumentContentType;
   content: any; // JSON for Tiptap doc, or string for plain text/latex
+  yjs_state?: string | null; // Base64 encoded binary Yjs update snapshot
   created_at: string;
   updated_at: string;
 }

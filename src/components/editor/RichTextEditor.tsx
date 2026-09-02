@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
@@ -75,27 +75,6 @@ export function RichTextEditor({
     },
     [extensions]
   );
-
-  // If running with provider and Y.Doc is brand new, populate it with initialContent
-  useEffect(() => {
-    if (editor && provider && initialContent) {
-      const fragment = provider.doc.getXmlFragment("default");
-      if (fragment.length === 0 && editor.isEmpty) {
-        editor.commands.setContent(initialContent, false);
-      }
-    }
-  }, [editor, provider, initialContent]);
-
-  // Sync if initialContent changes in single-user mode
-  useEffect(() => {
-    if (editor && !provider && initialContent && !editor.isFocused) {
-      const currentJSON = JSON.stringify(editor.getJSON());
-      const incomingJSON = JSON.stringify(initialContent);
-      if (currentJSON !== incomingJSON) {
-        editor.commands.setContent(initialContent, false);
-      }
-    }
-  }, [initialContent, editor, provider]);
 
   if (!editor) {
     return (

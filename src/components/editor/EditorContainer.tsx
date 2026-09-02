@@ -7,7 +7,11 @@ import { Document, SaveStatus } from "@/types/document";
 import { updateDocument, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { RichTextEditor } from "./RichTextEditor";
 import { StatusBadge } from "../ui/StatusBadge";
-import { SupabaseYjsProvider } from "@/lib/sync/supabase-provider";
+import {
+  SupabaseYjsProvider,
+  uint8ArrayToBase64,
+  base64ToUint8Array,
+} from "@/lib/sync/supabase-provider";
 import { getRandomUserPresence } from "@/lib/sync/user-presence";
 import {
   ArrowLeft,
@@ -39,15 +43,28 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
 
   const [currentUser] = useState(() => getRandomUserPresence());
   const [provider, setProvider] = useState<SupabaseYjsProvider | null>(null);
+  const ydocRef = useRef<Y.Doc | null>(null);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstRender = useRef(true);
   const isSupabase = isSupabaseConfigured();
 
-  // Initialize Yjs Document and Supabase Provider
+  // Initialize Yjs Document with stored binary state (if any) and Supabase Provider
   useEffect(() => {
     const ydoc = new Y.Doc();
-    const yProvider = new SupabaseYjsProvider(supabase, doc.id, ydoc);
+    ydocRef.current = ydoc;
+
+    // Restore existing binary CRDT state to ensure matching state vectors across all tabs
+    if (initialDocument.yjs_state) {
+      try {
+        const binaryState = base64ToUint8Array(initialDocument.yjs_state);
+        Y.applyUpdate(ydoc, binaryState);
+      } catch (err) {
+        console.error("Failed to restore initial Yjs state:", err);
+      }
+    }
+
+    const yProvider = new SupabaseYjsProvider(supabase, initialDocument.id, ydoc);
     setProvider(yProvider);
 
     // Set local awareness presence
@@ -80,16 +97,24 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
       unsubscribeStatus();
       yProvider.awareness.off("change", updateCollaborators);
       yProvider.destroy();
+      ydoc.destroy();
+      ydocRef.current = null;
     };
-  }, [doc.id, currentUser]);
+  }, [initialDocument.id, initialDocument.yjs_state, currentUser]);
 
   const performSave = useCallback(
     async (newTitle: string, newContent: any) => {
       setSaveStatus("saving");
       try {
+        const ydoc = ydocRef.current;
+        const yjsState = ydoc
+          ? uint8ArrayToBase64(Y.encodeStateAsUpdate(ydoc))
+          : undefined;
+
         const updated = await updateDocument(doc.id, {
           title: newTitle,
           content: newContent,
+          yjs_state: yjsState,
         });
         if (updated) {
           setDoc(updated);

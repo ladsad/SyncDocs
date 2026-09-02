@@ -124,7 +124,7 @@ export async function createDocument(
 
 export async function updateDocument(
   id: string,
-  updates: Partial<Pick<Document, "title" | "content">>
+  updates: Partial<Pick<Document, "title" | "content" | "yjs_state">>
 ): Promise<Document | null> {
   if (supabase) {
     const { data, error } = await supabase

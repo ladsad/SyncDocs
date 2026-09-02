@@ -21,14 +21,6 @@ export function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-export interface UserAwarenessState {
-  user: {
-    name: string;
-    color: string;
-  };
-  cursor?: any;
-}
-
 export class SupabaseYjsProvider {
   public doc: Y.Doc;
   public awareness: awarenessProtocol.Awareness;
@@ -36,6 +28,7 @@ export class SupabaseYjsProvider {
   public isConnected = false;
   private supabase: SupabaseClient | null;
   private documentId: string;
+  private pendingUpdates: Uint8Array[] = [];
   private onDocUpdateBound: (update: Uint8Array, origin: any) => void;
   private onAwarenessUpdateBound: ({
     added,
@@ -82,45 +75,57 @@ export class SupabaseYjsProvider {
 
   private connect() {
     if (!this.supabase) {
-      console.warn("Supabase client not initialized; running in local provider mode.");
       this.notifyStatus(false);
       return;
     }
 
-    const channelName = `doc-room:${this.documentId}`;
+    const channelName = `syncdocs-room-${this.documentId}`;
     this.channel = this.supabase.channel(channelName, {
       config: {
         broadcast: {
           self: false,
-          ack: false,
+          ack: true,
         },
       },
     });
 
-    // 1. Handle incoming Yjs document binary updates from peers
+    // 1. Handle live incoming Yjs updates
     this.channel.on("broadcast", { event: "doc-update" }, ({ payload }) => {
       if (payload?.update) {
         try {
           const update = base64ToUint8Array(payload.update);
           Y.applyUpdate(this.doc, update, this);
         } catch (e) {
-          console.error("Failed to apply incoming Yjs update:", e);
+          console.error("Failed to apply incoming doc-update:", e);
         }
       }
     });
 
-    // 2. Handle initial state sync request (sync-step-1) from a new joining peer
+    // 2. Handle sync-step-1: peer is requesting updates from their state vector
     this.channel.on("broadcast", { event: "sync-step-1" }, ({ payload }) => {
       if (payload?.stateVector) {
         try {
           const remoteStateVector = base64ToUint8Array(payload.stateVector);
           const update = Y.encodeStateAsUpdate(this.doc, remoteStateVector);
-          if (update.byteLength > 0 && this.channel) {
+          if (update.byteLength > 0 && this.channel && this.isConnected) {
             this.channel.send({
               type: "broadcast",
               event: "sync-step-2",
               payload: {
                 update: uint8ArrayToBase64(update),
+              },
+            });
+          }
+
+          // If the request was marked as initial handshake, send our state vector back so both sides sync
+          if (payload.initiator) {
+            const ourStateVector = Y.encodeStateVector(this.doc);
+            this.channel.send({
+              type: "broadcast",
+              event: "sync-step-1",
+              payload: {
+                stateVector: uint8ArrayToBase64(ourStateVector),
+                initiator: false,
               },
             });
           }
@@ -130,7 +135,7 @@ export class SupabaseYjsProvider {
       }
     });
 
-    // 3. Handle initial sync reply (sync-step-2) with state updates from existing peers
+    // 3. Handle sync-step-2: reply with missing updates
     this.channel.on("broadcast", { event: "sync-step-2" }, ({ payload }) => {
       if (payload?.update) {
         try {
@@ -161,17 +166,33 @@ export class SupabaseYjsProvider {
     this.channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
         this.notifyStatus(true);
-        // Announce presence and request missing updates via state vector
+
+        // Flush queued updates
+        if (this.pendingUpdates.length > 0) {
+          this.pendingUpdates.forEach((upd) => {
+            this.channel?.send({
+              type: "broadcast",
+              event: "doc-update",
+              payload: {
+                update: uint8ArrayToBase64(upd),
+              },
+            });
+          });
+          this.pendingUpdates = [];
+        }
+
+        // Initiate two-way sync handshake
         const stateVector = Y.encodeStateVector(this.doc);
         this.channel?.send({
           type: "broadcast",
           event: "sync-step-1",
           payload: {
             stateVector: uint8ArrayToBase64(stateVector),
+            initiator: true,
           },
         });
 
-        // Broadcast initial awareness
+        // Broadcast current user presence
         const awarenessUpdate = awarenessProtocol.encodeAwarenessUpdate(
           this.awareness,
           [this.doc.clientID]
@@ -190,7 +211,8 @@ export class SupabaseYjsProvider {
   }
 
   private handleLocalDocUpdate(update: Uint8Array, origin: any) {
-    if (origin === this) return; // Do not echo incoming updates back
+    if (origin === this) return; // Do not echo back remote updates
+
     if (this.channel && this.isConnected) {
       this.channel.send({
         type: "broadcast",
@@ -199,6 +221,8 @@ export class SupabaseYjsProvider {
           update: uint8ArrayToBase64(update),
         },
       });
+    } else {
+      this.pendingUpdates.push(update);
     }
   }
 
@@ -233,7 +257,6 @@ export class SupabaseYjsProvider {
     this.doc.off("update", this.onDocUpdateBound);
     this.awareness.off("update", this.onAwarenessUpdateBound);
 
-    // Remove local user from remote peers' awareness
     awarenessProtocol.removeAwarenessStates(
       this.awareness,
       [this.doc.clientID],
@@ -246,5 +269,6 @@ export class SupabaseYjsProvider {
     }
     this.notifyStatus(false);
     this.statusListeners = [];
+    this.pendingUpdates = [];
   }
 }
