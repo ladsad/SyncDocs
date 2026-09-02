@@ -59,9 +59,28 @@ A living record of the development timeline, key architectural decisions (ADRs),
 
 ---
 
-## 3. Maintenance Guidelines
+## 3. Notable Issues Encountered & Resolutions
+
+### Issue 1: Tiptap v2 / v3 Peer Dependency Mismatch
+- **Symptom:** `npm install` failure due to peer conflict between `@tiptap/pm@^2.11.5` and `@tiptap/extension-collaboration@3.x`.
+- **Resolution:** Explicitly installed matching v2 collaboration extensions (`@tiptap/extension-collaboration@^2.11.5`, `@tiptap/extension-collaboration-cursor@^2.11.5`).
+
+### Issue 2: Text Duplication on Dual-Tab Connection
+- **Symptom:** Opening a document in a secondary tab duplicated the initial text block.
+- **Root Cause:** Multiple clients independently called `editor.commands.setContent()` on fresh, empty `Y.Doc` instances before WebSocket sync completed. Yjs treated both as concurrent insertions by distinct clients and concatenated them.
+- **Resolution:** Persisted the raw binary Yjs CRDT state snapshot (`yjs_state`) in Postgres and restored it directly into `Y.Doc` on mount so all joining tabs share the exact same CRDT state vector.
+
+### Issue 3: One-Way Realtime Sync & Dropped Pre-Subscription Updates
+- **Symptom:** Edits from the joining tab did not propagate to the host tab, and edits made during socket connection were lost.
+- **Root Cause:** Handshake only sent updates unidirectionally on `sync-step-1` without sending a reciprocal state vector request, and socket broadcast events fired before `SUBSCRIBED` status were dropped.
+- **Resolution:** Upgraded `SupabaseYjsProvider` to enforce a bidirectional `sync-step-1` handshake and an update buffer that automatically flushes queued edits once the channel is subscribed.
+
+---
+
+## 4. Maintenance Guidelines
 
 Whenever a new phase is started/completed or an architectural decision is made:
 1. Append the entry to the **Timeline** table above.
 2. Record any design choices or trade-offs in the **ADRs** section.
-3. Keep `docs/architecture.md` and `docs/project-description.md` synchronized.
+3. Record significant bugs and fixes in the **Notable Issues Encountered** section.
+4. Keep `docs/architecture.md` and `docs/project-description.md` synchronized.
