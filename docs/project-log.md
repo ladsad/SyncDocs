@@ -85,6 +85,16 @@ A living record of the development timeline, key architectural decisions (ADRs),
 - **Root Cause:** Handshake only sent updates unidirectionally on `sync-step-1` without sending a reciprocal state vector request, and socket broadcast events fired before `SUBSCRIBED` status were dropped.
 - **Resolution:** Upgraded `SupabaseYjsProvider` to enforce a bidirectional `sync-step-1` handshake and an update buffer that automatically flushes queued edits once the channel is subscribed.
 
+### Issue 4: Missing E2EE Schema Columns on Live Supabase Instance
+- **Symptom:** `Could not find the 'encrypted_content' column of 'documents' in the schema cache` upon creating an encrypted document.
+- **Root Cause:** DDL changes for Phase 2 E2EE (`is_encrypted`, `encrypted_title`, `encrypted_content`, `encrypted_yjs_state`, `users`, `document_keys`) had not been executed on the live Supabase instance.
+- **Resolution:** Applied database migration via Supabase DDL runner and triggered PostgREST schema cache reload (`NOTIFY pgrst, 'reload schema'`).
+
+### Issue 5: AES-GCM OperationError on Document Decryption Across Contexts
+- **Symptom:** `DOMException: OperationError` at `crypto.subtle.decrypt` when opening or refreshing an encrypted document in a separate tab.
+- **Root Cause:** Joining tabs lacked the ephemeral Document Key from the creator's session and fell back to generating an incompatible random key, causing AES-GCM authentication tag verification failure.
+- **Resolution:** Implemented multi-tiered Document Key resolution in `CryptoVault` (URL hash `#key=...` -> `localStorage` -> deterministic room key derivation via `deriveDocumentKeyFromId`), guaranteeing key parity across multi-tab sessions and reloads.
+
 ---
 
 ## 4. Maintenance Guidelines

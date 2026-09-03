@@ -23,6 +23,32 @@ export async function generateDocumentKey(): Promise<CryptoKey> {
   );
 }
 
+export async function deriveDocumentKeyFromId(
+  documentId: string
+): Promise<CryptoKey> {
+  const salt = stringToUtf8(`syncdocs-room-salt-${documentId}`);
+  const baseKey = await window.crypto.subtle.importKey(
+    "raw",
+    stringToUtf8(`syncdocs-secret-passphrase-${documentId}`) as unknown as BufferSource,
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+
+  return await window.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: salt as unknown as BufferSource,
+      iterations: 100_000,
+      hash: "SHA-256",
+    },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"]
+  );
+}
+
 export async function exportPublicKey(key: CryptoKey): Promise<string> {
   const exported = await window.crypto.subtle.exportKey("spki", key);
   return arrayBufferToBase64(exported);

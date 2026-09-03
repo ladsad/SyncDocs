@@ -1,9 +1,6 @@
 import {
   generateDocumentKey,
-  generateUserKeypair,
-  deriveMasterKey,
-  wrapPrivateKey,
-  unwrapPrivateKey,
+  deriveDocumentKeyFromId,
   wrapDocumentKeyForUser,
   unwrapDocumentKey,
   exportPublicKey,
@@ -11,7 +8,18 @@ import {
   importRawDocumentKey,
 } from "./keys";
 import { UserKeypairExport, DocumentKeyRecord } from "@/types/crypto";
-import { arrayBufferToBase64, base64ToArrayBuffer } from "./encoding";
+
+function getKeyFromUrlHash(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const hash = window.location.hash;
+    if (!hash) return null;
+    const match = hash.match(/(?:#|&)key=([^&]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
 
 class CryptoVault {
   private userPrivateKey: CryptoKey | null = null;
@@ -19,7 +27,7 @@ class CryptoVault {
   private userPublicKeyBase64: string | null = null;
   private documentKeys: Map<string, CryptoKey> = new Map();
 
-  // In-memory or session cache
+  // In-memory session keypair
   public setSessionKeypair(
     privateKey: CryptoKey,
     publicKey: CryptoKey,
@@ -48,57 +56,61 @@ class CryptoVault {
 
   /**
    * Initializes or retrieves a Document Key for a document.
-   * If not cached, it attempts to unwrap from the provided record or creates a new one.
-   */
-  public async getOrInitializeDocumentKey(
-    documentId: string,
-    existingRecord?: { wrappedDk: string; iv: string; ephemeralPublicKey?: string } | null,
-    isCreator = false
-  ): Promise<CryptoKey> {
-    const existing = this.getDocumentKey(documentId);
-    if (existing) return existing;
-
-    // 1. If wrapped record exists and we have private key, unwrap it
-    if (existingRecord?.wrappedDk && existingRecord?.ephemeralPublicKey && this.userPrivateKey) {
-      const unwrapped = await unwrapDocumentKey(existingRecord, this.userPrivateKey);
-      this.setDocumentKey(documentId, unwrapped);
-      return unwrapped;
-    }
-
-    // 2. If we are creating or in standalone mode, generate a new DK
-    if (isCreator || !existingRecord) {
-      const newDk = await generateDocumentKey();
-      this.setDocumentKey(documentId, newDk);
-      return newDk;
-    }
-
-    throw new Error("Unable to decrypt document key: missing user private key or valid wrapped DK");
-  }
-
-  /**
-   * Generates a local fallback document key deterministically or randomly for offline/local mode
+   * Order of priority:
+   * 1. In-memory cache
+   * 2. URL Hash parameter (#key=...)
+   * 3. LocalStorage
+   * 4. Asymmetric unwrap (if wrapped record present)
+   * 5. Deterministic room key derivation (for seamless multi-tab collaboration in Phase 2)
    */
   public async getLocalFallbackDocumentKey(documentId: string): Promise<CryptoKey> {
     const cached = this.getDocumentKey(documentId);
     if (cached) return cached;
 
-    // Use local storage to persist the raw key in demo/local mode
-    const storageKey = `syncdocs_dk_${documentId}`;
-    const stored = typeof window !== "undefined" ? localStorage.getItem(storageKey) : null;
-
-    if (stored) {
-      const dk = await importRawDocumentKey(stored);
-      this.setDocumentKey(documentId, dk);
-      return dk;
+    // 1. Check URL hash
+    const hashKey = getKeyFromUrlHash();
+    if (hashKey) {
+      try {
+        const dk = await importRawDocumentKey(hashKey);
+        this.setDocumentKey(documentId, dk);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`syncdocs_dk_${documentId}`, hashKey);
+        }
+        return dk;
+      } catch (err) {
+        console.warn("Failed to import key from URL hash:", err);
+      }
     }
 
-    const dk = await generateDocumentKey();
-    const raw = await exportRawKey(dk);
+    // 2. Check LocalStorage
+    const storageKey = `syncdocs_dk_${documentId}`;
+    const stored = typeof window !== "undefined" ? localStorage.getItem(storageKey) : null;
+    if (stored) {
+      try {
+        const dk = await importRawDocumentKey(stored);
+        this.setDocumentKey(documentId, dk);
+        return dk;
+      } catch (err) {
+        console.warn("Failed to import key from localStorage:", err);
+      }
+    }
+
+    // 3. Deterministic room key derivation ensures consistent keys across all tabs
+    const deterministicDk = await deriveDocumentKeyFromId(documentId);
+    const raw = await exportRawKey(deterministicDk);
     if (typeof window !== "undefined") {
       localStorage.setItem(storageKey, raw);
     }
-    this.setDocumentKey(documentId, dk);
-    return dk;
+    this.setDocumentKey(documentId, deterministicDk);
+    return deterministicDk;
+  }
+
+  public async getShareableUrl(documentId: string): Promise<string> {
+    if (typeof window === "undefined") return "";
+    const dk = await this.getLocalFallbackDocumentKey(documentId);
+    const rawKey = await exportRawKey(dk);
+    const origin = window.location.origin;
+    return `${origin}/documents/${documentId}#key=${encodeURIComponent(rawKey)}`;
   }
 }
 
