@@ -1,9 +1,28 @@
 import { EncryptedPayload } from "./crypto";
 
 export type DocumentContentType = "rich_text" | "markdown" | "latex" | "typst";
+export type DocumentRole = "owner" | "editor" | "viewer";
+
+export interface DocumentPermission {
+  document_id: string;
+  user_id: string;
+  role: DocumentRole;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DocumentCollaborator {
+  userId: string;
+  email?: string;
+  role: DocumentRole;
+  publicKey?: string;
+  joinedAt?: string;
+}
 
 export interface Document {
   id: string;
+  owner_id?: string | null;
+  role?: DocumentRole; // Current active user's role on this document
   title: string;
   content_type: DocumentContentType;
   content: any; // Plaintext JSON in Phase 0/1 or client-decrypted representation
@@ -18,6 +37,7 @@ export interface Document {
 
 export interface StoredDocumentRow {
   id: string;
+  owner_id?: string | null;
   title?: string;
   content_type: DocumentContentType;
   content?: any;

@@ -14,6 +14,7 @@ create table if not exists users (
 -- 2. Documents table (Plaintext + E2EE Ciphertext columns)
 create table if not exists documents (
   id uuid primary key default gen_random_uuid(),
+  owner_id uuid references users(id) on delete set null,
   title text not null default 'Untitled Document',
   content_type text not null default 'rich_text',
   content jsonb not null default '{"type":"doc","content":[{"type":"paragraph"}]}'::jsonb,
@@ -37,9 +38,27 @@ create table if not exists document_keys (
   primary key (document_id, user_id)
 );
 
+-- 4. Permissions table (Role-based access control: owner, editor, viewer)
+do $$ begin
+  create type document_role as enum ('owner', 'editor', 'viewer');
+exception
+  when duplicate_object then null;
+end $$;
+
+create table if not exists permissions (
+  document_id uuid not null references documents(id) on delete cascade,
+  user_id uuid not null,
+  role document_role not null default 'viewer',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (document_id, user_id)
+);
+
 -- Indexes
 create index if not exists idx_documents_updated_at on documents(updated_at desc);
 create index if not exists idx_document_keys_user_id on document_keys(user_id);
+create index if not exists idx_permissions_user_id on permissions(user_id);
+create index if not exists idx_permissions_doc_user on permissions(document_id, user_id);
 
 -- Auto-update updated_at timestamp trigger
 create or replace function update_updated_at_column()
@@ -60,8 +79,9 @@ execute function update_updated_at_column();
 alter table public.documents enable row level security;
 alter table public.users enable row level security;
 alter table public.document_keys enable row level security;
+alter table public.permissions enable row level security;
 
--- Open access policy during Phase 1/2 development (will be refined with auth RLS in Phase 3)
+-- Permissive access policy for development/fallback
 drop policy if exists "Allow all access to documents" on public.documents;
 create policy "Allow all access to documents" on public.documents for all using (true) with check (true);
 
@@ -70,3 +90,6 @@ create policy "Allow all access to users" on public.users for all using (true) w
 
 drop policy if exists "Allow all access to document_keys" on public.document_keys;
 create policy "Allow all access to document_keys" on public.document_keys for all using (true) with check (true);
+
+drop policy if exists "Allow all access to permissions" on public.permissions;
+create policy "Allow all access to permissions" on public.permissions for all using (true) with check (true);
