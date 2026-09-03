@@ -11,7 +11,7 @@ A living record of the development timeline, key architectural decisions (ADRs),
 | **2026-09-02** | **Project Kickoff & Architecture** | Defined core architecture, zero-knowledge privacy guarantees, content-type plugin model, and phased roadmap in `docs/architecture.md` and `docs/project-description.md`. | Completed |
 | **2026-09-02** | **Phase 0: Scaffold & Single-User Editor** | Built Next.js (App Router) + TypeScript + Tailwind scaffold. Implemented Tiptap WYSIWYG Rich Text editor with full formatting toolbar, debounced auto-save, document list dashboard, and Supabase Postgres schema (`supabase/schema.sql`) with local fallback. | Completed |
 | **2026-09-02** | **Phase 1: Real-Time Sync (No E2EE)** | Integrated Yjs CRDT with Tiptap via Supabase Realtime broadcast channels (`doc-room:<id>`). Implemented remote awareness for multi-cursor and selection synchronization. | Completed |
-| *Upcoming* | **Phase 2: End-to-End Encryption (E2EE)** | User keypairs (X25519), Document Keys (AES-GCM), wrapped key management, and ciphertext-only transport/storage. | Planned |
+| **2026-09-03** | **Phase 2: End-to-End Encryption (E2EE)** | Implemented client-side cryptographic engine using Web Crypto API (ECDH P-256 keypairs, PBKDF2 Master Key derivation, AES-256-GCM Document Keys). Integrated encrypted Yjs binary deltas/snapshots in `SupabaseYjsProvider` and ciphertext envelope storage in Supabase/Local storage. | Completed |
 | *Upcoming* | **Phase 3: Sharing & Roles** | Invite flows, permission model (owner/editor/viewer), wrapped DK distribution. | Planned |
 | *Upcoming* | **Phase 4: Multi-Style Editing Surfaces** | Markdown (CodeMirror + live preview), LaTeX (CodeMirror + Tier 1 WASM compiler / Tier 2 Local Agent). | Planned |
 
@@ -55,6 +55,16 @@ A living record of the development timeline, key architectural decisions (ADRs),
 ### ADR-007: Yjs State Snapshot Baseline & Two-Way Sync Handshake
 - **Context:** Concurrent client initialization caused duplicated text when initializing `Y.Doc` instances from raw JSON independently, and initial handshake messages lacked reciprocal state vector exchanges.
 - **Decision:** Persist binary CRDT state (`yjs_state`) snapshots directly to Postgres and restore synchronously on mount. Enforce reciprocal two-way `sync-step-1` state vector exchanges and update queueing during channel subscription.
+- **Status:** Accepted.
+
+### ADR-008: Native Web Crypto Key Hierarchy & AES-GCM Envelope Encryption
+- **Context:** E2EE requires zero-knowledge security without relying on external server trust or heavy 3rd-party cryptographic bundles.
+- **Decision:** Use native Web Crypto API: ECDH P-256 for asymmetric user keypairs, PBKDF2 (SHA-256, 600,000 iterations) for password-derived private key wrapping, and per-document AES-256-GCM Document Keys (DK).
+- **Status:** Accepted.
+
+### ADR-009: Oblivious Encrypted Wire Protocol in Realtime Broadcast
+- **Context:** Realtime broadcast events must carry encrypted Yjs diffs without leaking document structure or data to the Supabase infrastructure.
+- **Decision:** Encapsulate Yjs updates in `{ ciphertext, iv }` envelopes on `doc-update` and `sync-step-2` channels. Clients decrypt binary updates prior to merging into their local `Y.Doc`.
 - **Status:** Accepted.
 
 ---

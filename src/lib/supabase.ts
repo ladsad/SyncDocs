@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { Document, DocumentContentType } from "@/types/document";
+import { Document, DocumentContentType, StoredDocumentRow } from "@/types/document";
+import { cryptoVault } from "./crypto/vault";
+import { encryptDocumentPayload, decryptDocumentRow } from "./crypto/document-crypto";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -18,7 +20,7 @@ export const supabase = isSupabaseConfigured()
 
 const LOCAL_STORAGE_KEY = "syncdocs_local_documents";
 
-const getLocalDocs = (): Document[] => {
+const getLocalDocRows = (): StoredDocumentRow[] => {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -28,16 +30,18 @@ const getLocalDocs = (): Document[] => {
   }
 };
 
-const saveLocalDocs = (docs: Document[]) => {
+const saveLocalDocRows = (rows: StoredDocumentRow[]) => {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(docs));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(rows));
   } catch (e) {
     console.error("Failed to save to local storage", e);
   }
 };
 
 export async function fetchDocuments(): Promise<Document[]> {
+  let rows: StoredDocumentRow[] = [];
+
   if (supabase) {
     const { data, error } = await supabase
       .from("documents")
@@ -48,13 +52,28 @@ export async function fetchDocuments(): Promise<Document[]> {
       console.error("Supabase fetch error:", error.message);
       throw error;
     }
-    return data || [];
+    rows = data || [];
+  } else {
+    rows = getLocalDocRows();
   }
 
-  return getLocalDocs();
+  // Decrypt rows if keys are available
+  const docs: Document[] = await Promise.all(
+    rows.map(async (row) => {
+      let dk = cryptoVault.getDocumentKey(row.id);
+      if (!dk && row.is_encrypted) {
+        dk = await cryptoVault.getLocalFallbackDocumentKey(row.id).catch(() => null);
+      }
+      return await decryptDocumentRow(row, dk);
+    })
+  );
+
+  return docs;
 }
 
 export async function fetchDocumentById(id: string): Promise<Document | null> {
+  let row: StoredDocumentRow | null = null;
+
   if (supabase) {
     const { data, error } = await supabase
       .from("documents")
@@ -67,11 +86,20 @@ export async function fetchDocumentById(id: string): Promise<Document | null> {
       console.error("Supabase fetch document error:", error.message);
       throw error;
     }
-    return data;
+    row = data;
+  } else {
+    const rows = getLocalDocRows();
+    row = rows.find((d) => d.id === id) || null;
   }
 
-  const docs = getLocalDocs();
-  return docs.find((d) => d.id === id) || null;
+  if (!row) return null;
+
+  let dk = cryptoVault.getDocumentKey(id);
+  if (!dk && row.is_encrypted) {
+    dk = await cryptoVault.getLocalFallbackDocumentKey(id).catch(() => null);
+  }
+
+  return await decryptDocumentRow(row, dk);
 }
 
 export async function createDocument(
@@ -85,18 +113,37 @@ export async function createDocument(
         content: [{ type: "text", text: "Start writing..." }],
       },
     ],
-  }
+  },
+  isEncrypted: boolean = true
 ): Promise<Document> {
-  const newDocData = {
-    title,
-    content_type: contentType,
-    content: initialContent,
-  };
+  const newId = crypto.randomUUID();
+  let insertPayload: any;
+
+  if (isEncrypted) {
+    const dk = await cryptoVault.getLocalFallbackDocumentKey(newId);
+    const encryptedData = await encryptDocumentPayload(
+      { title, content: initialContent, yjs_state: null },
+      dk
+    );
+    insertPayload = {
+      id: newId,
+      content_type: contentType,
+      ...encryptedData,
+    };
+  } else {
+    insertPayload = {
+      id: newId,
+      title,
+      content_type: contentType,
+      content: initialContent,
+      is_encrypted: false,
+    };
+  }
 
   if (supabase) {
     const { data, error } = await supabase
       .from("documents")
-      .insert([newDocData])
+      .insert([insertPayload])
       .select()
       .single();
 
@@ -104,35 +151,58 @@ export async function createDocument(
       console.error("Supabase create error:", error.message);
       throw error;
     }
-    return data;
+
+    const dk = cryptoVault.getDocumentKey(newId);
+    return await decryptDocumentRow(data, dk);
   }
 
-  const newDoc: Document = {
-    id: crypto.randomUUID(),
-    title,
-    content_type: contentType,
-    content: initialContent,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+  const now = new Date().toISOString();
+  const storedRow: StoredDocumentRow = {
+    ...insertPayload,
+    created_at: now,
+    updated_at: now,
   };
 
-  const docs = getLocalDocs();
-  docs.unshift(newDoc);
-  saveLocalDocs(docs);
-  return newDoc;
+  const rows = getLocalDocRows();
+  rows.unshift(storedRow);
+  saveLocalDocRows(rows);
+
+  const dk = cryptoVault.getDocumentKey(newId);
+  return await decryptDocumentRow(storedRow, dk);
 }
 
 export async function updateDocument(
   id: string,
-  updates: Partial<Pick<Document, "title" | "content" | "yjs_state">>
+  updates: Partial<Pick<Document, "title" | "content" | "yjs_state">>,
+  isEncrypted = true
 ): Promise<Document | null> {
+  let updatePayload: any = {};
+
+  if (isEncrypted) {
+    const dk = await cryptoVault.getLocalFallbackDocumentKey(id);
+    const encryptedData = await encryptDocumentPayload(
+      {
+        title: updates.title || "Untitled Document",
+        content: updates.content || { type: "doc", content: [] },
+        yjs_state: updates.yjs_state || null,
+      },
+      dk
+    );
+    updatePayload = {
+      ...encryptedData,
+      updated_at: new Date().toISOString(),
+    };
+  } else {
+    updatePayload = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+  }
+
   if (supabase) {
     const { data, error } = await supabase
       .from("documents")
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", id)
       .select()
       .single();
@@ -141,20 +211,22 @@ export async function updateDocument(
       console.error("Supabase update error:", error.message);
       throw error;
     }
-    return data;
+    const dk = cryptoVault.getDocumentKey(id);
+    return await decryptDocumentRow(data, dk);
   }
 
-  const docs = getLocalDocs();
-  const index = docs.findIndex((d) => d.id === id);
+  const rows = getLocalDocRows();
+  const index = rows.findIndex((d) => d.id === id);
   if (index === -1) return null;
 
-  docs[index] = {
-    ...docs[index],
-    ...updates,
-    updated_at: new Date().toISOString(),
+  rows[index] = {
+    ...rows[index],
+    ...updatePayload,
   };
-  saveLocalDocs(docs);
-  return docs[index];
+  saveLocalDocRows(rows);
+
+  const dk = cryptoVault.getDocumentKey(id);
+  return await decryptDocumentRow(rows[index], dk);
 }
 
 export async function deleteDocument(id: string): Promise<boolean> {
@@ -167,7 +239,7 @@ export async function deleteDocument(id: string): Promise<boolean> {
     return true;
   }
 
-  const docs = getLocalDocs().filter((d) => d.id !== id);
-  saveLocalDocs(docs);
+  const rows = getLocalDocRows().filter((d) => d.id !== id);
+  saveLocalDocRows(rows);
   return true;
 }

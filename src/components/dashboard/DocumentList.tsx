@@ -20,6 +20,7 @@ import {
   Clock,
   FileCode,
   FileSpreadsheet,
+  ShieldCheck,
 } from "lucide-react";
 
 export function DocumentList() {
@@ -57,7 +58,7 @@ export function DocumentList() {
           ? "Untitled Markdown"
           : "Untitled Document";
 
-      const newDoc = await createDocument(defaultTitle, contentType);
+      const newDoc = await createDocument(defaultTitle, contentType, undefined, true);
       router.push(`/documents/${newDoc.id}`);
     } catch (error) {
       console.error("Failed to create document:", error);
@@ -120,8 +121,8 @@ export function DocumentList() {
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">
                 SyncDocs
               </h1>
-              <p className="text-xs text-slate-500 font-medium">
-                Phase 0 — Single-User Rich Text Editor
+              <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                Phase 2 — End-to-End Encrypted CRDT Editor
               </p>
             </div>
           </div>
@@ -148,7 +149,7 @@ export function DocumentList() {
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-colors disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
-              <span>New Document</span>
+              <span>New Encrypted Document</span>
             </button>
           </div>
         </div>
@@ -164,7 +165,7 @@ export function DocumentList() {
                 Supabase credentials not detected in .env.local
               </p>
               <p className="text-blue-800 text-xs">
-                SyncDocs is currently storing documents in local browser storage.
+                SyncDocs is currently operating in local storage fallback with client-side E2EE.
                 To save/load to Supabase Postgres, set{" "}
                 <code className="bg-blue-100 px-1 py-0.5 rounded font-mono">
                   NEXT_PUBLIC_SUPABASE_URL
@@ -205,7 +206,7 @@ export function DocumentList() {
               No documents yet
             </h3>
             <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">
-              Create your first rich text document to start writing.
+              Create your first encrypted rich text document to start writing.
             </p>
             <button
               onClick={() => handleCreateNew("rich_text")}
@@ -213,7 +214,7 @@ export function DocumentList() {
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-colors"
             >
               <Plus className="w-4 h-4" />
-              <span>Create Rich Text Document</span>
+              <span>Create Encrypted Document</span>
             </button>
           </div>
         ) : (
@@ -240,9 +241,17 @@ export function DocumentList() {
                   <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1 mb-1">
                     {doc.title || "Untitled Document"}
                   </h3>
-                  <span className="inline-block text-[11px] font-medium uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    {doc.content_type.replace("_", " ")}
-                  </span>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="inline-block text-[11px] font-medium uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                      {doc.content_type.replace("_", " ")}
+                    </span>
+                    {doc.is_encrypted && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        E2EE
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">

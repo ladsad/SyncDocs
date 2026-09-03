@@ -5,6 +5,7 @@ import Link from "next/link";
 import * as Y from "yjs";
 import { Document, SaveStatus } from "@/types/document";
 import { updateDocument, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { cryptoVault } from "@/lib/crypto/vault";
 import { RichTextEditor } from "./RichTextEditor";
 import { StatusBadge } from "../ui/StatusBadge";
 import {
@@ -21,6 +22,7 @@ import {
   Users,
   Wifi,
   WifiOff,
+  ShieldCheck,
 } from "lucide-react";
 
 interface EditorContainerProps {
@@ -40,6 +42,7 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [collaborators, setCollaborators] = useState<CollaboratorInfo[]>([]);
   const [isSyncConnected, setIsSyncConnected] = useState(false);
+  const [isEncrypted, setIsEncrypted] = useState(true);
 
   const [currentUser] = useState(() => getRandomUserPresence());
   const [provider, setProvider] = useState<SupabaseYjsProvider | null>(null);
@@ -49,8 +52,9 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const isFirstRender = useRef(true);
   const isSupabase = isSupabaseConfigured();
 
-  // Initialize Yjs Document with stored binary state (if any) and Supabase Provider
+  // Initialize Yjs Document with stored binary state (if any), Document Key, and Supabase Provider
   useEffect(() => {
+    let isCancelled = false;
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
 
@@ -66,6 +70,17 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
 
     const yProvider = new SupabaseYjsProvider(supabase, initialDocument.id, ydoc);
     setProvider(yProvider);
+
+    // Setup E2EE Document Key
+    cryptoVault
+      .getLocalFallbackDocumentKey(initialDocument.id)
+      .then((dk) => {
+        if (!isCancelled && dk) {
+          yProvider.setDocumentKey(dk);
+          setIsEncrypted(true);
+        }
+      })
+      .catch((e) => console.error("Failed to acquire Document Key:", e));
 
     // Set local awareness presence
     yProvider.awareness.setLocalStateField("user", currentUser);
@@ -94,6 +109,7 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
     updateCollaborators();
 
     return () => {
+      isCancelled = true;
       unsubscribeStatus();
       yProvider.awareness.off("change", updateCollaborators);
       yProvider.destroy();
@@ -111,11 +127,15 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
           ? uint8ArrayToBase64(Y.encodeStateAsUpdate(ydoc))
           : undefined;
 
-        const updated = await updateDocument(doc.id, {
-          title: newTitle,
-          content: newContent,
-          yjs_state: yjsState,
-        });
+        const updated = await updateDocument(
+          doc.id,
+          {
+            title: newTitle,
+            content: newContent,
+            yjs_state: yjsState,
+          },
+          isEncrypted
+        );
         if (updated) {
           setDoc(updated);
           setSaveStatus("saved");
@@ -127,7 +147,7 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
         setSaveStatus("error");
       }
     },
-    [doc.id]
+    [doc.id, isEncrypted]
   );
 
   // Trigger auto-save debounce on title or content change
@@ -236,6 +256,17 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* E2EE Security Badge */}
+            {isEncrypted && (
+              <div
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/80 text-emerald-800 rounded-lg text-xs font-medium"
+                title="End-to-End Encrypted with client-side AES-256-GCM. Plaintext never leaves your browser."
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>E2EE (AES-256)</span>
+              </div>
+            )}
+
             {/* Live Sync Status & Active Collaborators */}
             {isSupabase && (
               <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs">

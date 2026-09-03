@@ -1,6 +1,8 @@
 import * as Y from "yjs";
 import * as awarenessProtocol from "y-protocols/awareness";
 import { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
+import { encryptBytes, decryptBytes } from "@/lib/crypto/cipher";
+import { EncryptedPayload } from "@/types/crypto";
 
 export function uint8ArrayToBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -28,6 +30,7 @@ export class SupabaseYjsProvider {
   public isConnected = false;
   private supabase: SupabaseClient | null;
   private documentId: string;
+  private documentKey: CryptoKey | null = null;
   private pendingUpdates: Uint8Array[] = [];
   private onDocUpdateBound: (update: Uint8Array, origin: any) => void;
   private onAwarenessUpdateBound: ({
@@ -44,11 +47,13 @@ export class SupabaseYjsProvider {
   constructor(
     supabase: SupabaseClient | null,
     documentId: string,
-    doc: Y.Doc = new Y.Doc()
+    doc: Y.Doc = new Y.Doc(),
+    documentKey: CryptoKey | null = null
   ) {
     this.supabase = supabase;
     this.documentId = documentId;
     this.doc = doc;
+    this.documentKey = documentKey;
     this.awareness = new awarenessProtocol.Awareness(this.doc);
 
     this.onDocUpdateBound = this.handleLocalDocUpdate.bind(this);
@@ -58,6 +63,10 @@ export class SupabaseYjsProvider {
     this.awareness.on("update", this.onAwarenessUpdateBound);
 
     this.connect();
+  }
+
+  public setDocumentKey(key: CryptoKey | null) {
+    this.documentKey = key;
   }
 
   public onStatus(cb: (status: { connected: boolean }) => void) {
@@ -89,35 +98,52 @@ export class SupabaseYjsProvider {
       },
     });
 
-    // 1. Handle live incoming Yjs updates
-    this.channel.on("broadcast", { event: "doc-update" }, ({ payload }) => {
-      if (payload?.update) {
+    // 1. Handle live incoming Yjs updates (Encrypted or Plaintext fallback)
+    this.channel.on("broadcast", { event: "doc-update" }, async ({ payload }) => {
+      if (payload?.encryptedUpdate && this.documentKey) {
+        try {
+          const decrypted = await decryptBytes(
+            payload.encryptedUpdate as EncryptedPayload,
+            this.documentKey
+          );
+          Y.applyUpdate(this.doc, decrypted, this);
+        } catch (e) {
+          console.error("Failed to decrypt incoming doc-update:", e);
+        }
+      } else if (payload?.update) {
         try {
           const update = base64ToUint8Array(payload.update);
           Y.applyUpdate(this.doc, update, this);
         } catch (e) {
-          console.error("Failed to apply incoming doc-update:", e);
+          console.error("Failed to apply incoming plaintext doc-update:", e);
         }
       }
     });
 
     // 2. Handle sync-step-1: peer is requesting updates from their state vector
-    this.channel.on("broadcast", { event: "sync-step-1" }, ({ payload }) => {
+    this.channel.on("broadcast", { event: "sync-step-1" }, async ({ payload }) => {
       if (payload?.stateVector) {
         try {
           const remoteStateVector = base64ToUint8Array(payload.stateVector);
           const update = Y.encodeStateAsUpdate(this.doc, remoteStateVector);
           if (update.byteLength > 0 && this.channel && this.isConnected) {
-            this.channel.send({
-              type: "broadcast",
-              event: "sync-step-2",
-              payload: {
-                update: uint8ArrayToBase64(update),
-              },
-            });
+            if (this.documentKey) {
+              const encrypted = await encryptBytes(update, this.documentKey);
+              this.channel.send({
+                type: "broadcast",
+                event: "sync-step-2",
+                payload: { encryptedUpdate: encrypted },
+              });
+            } else {
+              this.channel.send({
+                type: "broadcast",
+                event: "sync-step-2",
+                payload: { update: uint8ArrayToBase64(update) },
+              });
+            }
           }
 
-          // If the request was marked as initial handshake, send our state vector back so both sides sync
+          // If initial handshake, send reciprocal state vector request
           if (payload.initiator && this.channel && this.isConnected) {
             const ourStateVector = Y.encodeStateVector(this.doc);
             this.channel.send({
@@ -136,8 +162,18 @@ export class SupabaseYjsProvider {
     });
 
     // 3. Handle sync-step-2: reply with missing updates
-    this.channel.on("broadcast", { event: "sync-step-2" }, ({ payload }) => {
-      if (payload?.update) {
+    this.channel.on("broadcast", { event: "sync-step-2" }, async ({ payload }) => {
+      if (payload?.encryptedUpdate && this.documentKey) {
+        try {
+          const decrypted = await decryptBytes(
+            payload.encryptedUpdate as EncryptedPayload,
+            this.documentKey
+          );
+          Y.applyUpdate(this.doc, decrypted, this);
+        } catch (e) {
+          console.error("Failed to decrypt incoming sync-step-2:", e);
+        }
+      } else if (payload?.update) {
         try {
           const update = base64ToUint8Array(payload.update);
           Y.applyUpdate(this.doc, update, this);
@@ -169,14 +205,21 @@ export class SupabaseYjsProvider {
 
         // Flush queued updates
         if (this.pendingUpdates.length > 0) {
-          this.pendingUpdates.forEach((upd) => {
-            this.channel?.send({
-              type: "broadcast",
-              event: "doc-update",
-              payload: {
-                update: uint8ArrayToBase64(upd),
-              },
-            });
+          this.pendingUpdates.forEach(async (upd) => {
+            if (this.documentKey) {
+              const encrypted = await encryptBytes(upd, this.documentKey);
+              this.channel?.send({
+                type: "broadcast",
+                event: "doc-update",
+                payload: { encryptedUpdate: encrypted },
+              });
+            } else {
+              this.channel?.send({
+                type: "broadcast",
+                event: "doc-update",
+                payload: { update: uint8ArrayToBase64(upd) },
+              });
+            }
           });
           this.pendingUpdates = [];
         }
@@ -210,17 +253,26 @@ export class SupabaseYjsProvider {
     });
   }
 
-  private handleLocalDocUpdate(update: Uint8Array, origin: any) {
+  private async handleLocalDocUpdate(update: Uint8Array, origin: any) {
     if (origin === this) return; // Do not echo back remote updates
 
     if (this.channel && this.isConnected) {
-      this.channel.send({
-        type: "broadcast",
-        event: "doc-update",
-        payload: {
-          update: uint8ArrayToBase64(update),
-        },
-      });
+      if (this.documentKey) {
+        const encrypted = await encryptBytes(update, this.documentKey);
+        this.channel.send({
+          type: "broadcast",
+          event: "doc-update",
+          payload: { encryptedUpdate: encrypted },
+        });
+      } else {
+        this.channel.send({
+          type: "broadcast",
+          event: "doc-update",
+          payload: {
+            update: uint8ArrayToBase64(update),
+          },
+        });
+      }
     } else {
       this.pendingUpdates.push(update);
     }
