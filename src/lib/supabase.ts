@@ -78,8 +78,8 @@ export async function fetchDocuments(): Promise<Document[]> {
     let query = supabase.from("documents").select("*").order("updated_at", { ascending: false });
 
     if (docIds.size > 0) {
-      const idFilter = Array.from(docIds).map((id) => `id.eq.${id}`).join(",");
-      query = query.or(`owner_id.eq.${currentUserId},${idFilter}`);
+      const idList = Array.from(docIds).join(",");
+      query = query.or(`owner_id.eq.${currentUserId},id.in.(${idList})`);
     } else {
       query = query.eq("owner_id", currentUserId);
     }

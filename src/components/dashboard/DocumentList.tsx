@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Document, DocumentContentType } from "@/types/document";
+import { Document, DocumentContentType, DocumentInvitation } from "@/types/document";
 import {
   fetchDocuments,
   createDocument,
@@ -26,15 +26,27 @@ import {
   Search,
   Copy,
   Check,
+  Mail,
+  Key,
+  ArrowRight,
+  Sparkles,
 } from "lucide-react";
 import { ShareModal } from "../editor/ShareModal";
 import { UserProfileModal } from "../ui/UserProfileModal";
 import { OnboardingModal } from "../ui/OnboardingModal";
 import { cryptoVault } from "@/lib/crypto/vault";
+import {
+  fetchIncomingInvitations,
+  redeemDocumentInvitation,
+} from "@/lib/crypto/document-crypto";
 
 export function DocumentList() {
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [incomingInvites, setIncomingInvites] = useState<DocumentInvitation[]>([]);
+  const [redeemInput, setRedeemInput] = useState("");
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+  const [redeeming, setRedeeming] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,6 +69,16 @@ export function DocumentList() {
     }
   };
 
+  const loadInvites = async (email?: string | null) => {
+    if (!email) return;
+    try {
+      const invites = await fetchIncomingInvitations(email);
+      setIncomingInvites(invites);
+    } catch (e) {
+      console.warn("Failed to load incoming invitations:", e);
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined" && !localStorage.getItem("syncdocs_onboarded")) {
       setIsOnboardingOpen(true);
@@ -67,12 +89,50 @@ export function DocumentList() {
       .then((session) => {
         setUserEmail(session.email);
         loadDocuments();
+        loadInvites(session.email);
       })
       .catch((e) => {
         console.warn("Failed to load user session:", e);
         loadDocuments();
       });
   }, []);
+
+  const handleRedeemInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRedeemError(null);
+    const input = redeemInput.trim();
+    if (!input) return;
+
+    setRedeeming(true);
+    try {
+      let inviteToken = "";
+      let inviteKey = "";
+
+      const inviteMatch = input.match(/[?&]invite=([^&#]+)/);
+      const inviteKeyMatch = input.match(/(?:#|&)inviteKey=([^&]+)/);
+
+      if (inviteMatch && inviteKeyMatch) {
+        inviteToken = decodeURIComponent(inviteMatch[1]);
+        inviteKey = decodeURIComponent(inviteKeyMatch[1]);
+      } else {
+        throw new Error("Invalid invitation URL format. Make sure to paste the full link containing #inviteKey=...");
+      }
+
+      const res = await redeemDocumentInvitation(inviteToken, inviteKey);
+      if (res.success && res.documentId) {
+        setRedeemInput("");
+        await loadDocuments();
+        if (userEmail) await loadInvites(userEmail);
+        router.push(`/documents/${res.documentId}`);
+      } else {
+        setRedeemError(res.error || "Failed to redeem invitation.");
+      }
+    } catch (err: any) {
+      setRedeemError(err.message || "Invalid invitation link.");
+    } finally {
+      setRedeeming(false);
+    }
+  };
 
   const handleCreateNew = async (
     contentType: DocumentContentType = "rich_text"
@@ -233,6 +293,51 @@ export function DocumentList() {
                 <code className="font-mono">supabase/schema.sql</code>.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Incoming Invitations Notice & Quick Claim */}
+        {incomingInvites.length > 0 && (
+          <div className="mb-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200/80 rounded-xl p-5 shadow-sm space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-blue-600 text-white shadow-sm">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    You have {incomingInvites.length} pending document {incomingInvites.length === 1 ? "invitation" : "invitations"}
+                  </h3>
+                  <p className="text-xs text-slate-600">
+                    A teammate invited <strong>{userEmail}</strong> to collaborate on an encrypted document.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleRedeemInvite} className="flex flex-col sm:flex-row gap-2 pt-1">
+              <div className="relative flex-1">
+                <Key className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={redeemInput}
+                  onChange={(e) => setRedeemInput(e.target.value)}
+                  placeholder="Paste your invitation link (e.g. /documents/...#inviteKey=...)"
+                  className="w-full text-xs bg-white border border-slate-200 pl-9 pr-3 py-2 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-inner"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={redeeming}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-50 shrink-0"
+              >
+                <span>{redeeming ? "Claiming..." : "Claim & Open"}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </form>
+            {redeemError && (
+              <p className="text-xs text-rose-600 font-medium">{redeemError}</p>
+            )}
           </div>
         )}
 

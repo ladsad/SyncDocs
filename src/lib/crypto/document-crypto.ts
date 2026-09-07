@@ -503,4 +503,28 @@ export async function revokeCollaboratorAccess(
   return false;
 }
 
+/**
+ * Fetches all pending zero-knowledge invitations addressed to a user's email.
+ */
+export async function fetchIncomingInvitations(
+  userEmail?: string | null
+): Promise<DocumentInvitation[]> {
+  if (!supabase || !userEmail) return [];
+  const cleanEmail = userEmail.trim().toLowerCase();
+
+  try {
+    const { data, error } = await supabase
+      .from("document_invitations")
+      .select("id, document_id, email, role, invite_token, expires_at, created_at")
+      .eq("email", cleanEmail)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return [];
+    return data as DocumentInvitation[];
+  } catch (err) {
+    console.warn("Failed to fetch incoming invitations:", err);
+    return [];
+  }
+}
+
 
