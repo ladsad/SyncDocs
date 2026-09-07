@@ -83,135 +83,134 @@ export function UserProfileModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 selection:bg-sage-soft selection:text-ink">
       <div
-        className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col"
+        className="w-full max-w-md bg-canvas-surface border border-border rounded-xs overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
-              <User className="w-5 h-5" />
-            </div>
+        <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-canvas-surface">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 bg-sage rounded-xs" />
             <div>
-              <h2 className="text-base font-semibold text-slate-900">
-                Your Cryptographic Identity
+              <h2 className="font-mono text-xs font-bold uppercase text-ink">
+                CRYPTOGRAPHIC IDENTITY
               </h2>
-              <p className="text-xs text-slate-500">
-                Manage your E2EE keypair & email address
+              <p className="font-mono text-[10px] text-ink-muted">
+                SESSION KEYS & REGISTRY
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-1 text-ink-muted hover:text-ink hover:bg-canvas-subtle rounded-xs transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-5 space-y-5">
           {/* Email Edit Form */}
-          <form onSubmit={handleSaveEmail} className="space-y-3">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Your Email Address
+          <form onSubmit={handleSaveEmail} className="space-y-2.5">
+            <label className="block font-mono text-[10px] font-bold uppercase text-ink-muted">
+              01 / EMAIL IDENTITY
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <Mail className="w-3.5 h-3.5 text-ink-muted absolute left-2.5 top-2.5" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your.email@example.com"
                   required
-                  className="w-full text-sm bg-white border border-slate-200 pl-9 pr-3 py-2 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-xs font-mono bg-canvas-DEFAULT border border-border pl-8 pr-3 py-2 rounded-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-sage"
                 />
               </div>
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 shrink-0"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-mono font-medium text-canvas-DEFAULT bg-sage hover:bg-sage-hover border border-sage rounded-xs transition-colors disabled:opacity-50 shrink-0"
               >
                 <Save className="w-3.5 h-3.5" />
-                <span>{saving ? "Saving..." : "Save"}</span>
+                <span>{saving ? "SAVING..." : "SAVE"}</span>
               </button>
             </div>
-            <p className="text-[11px] text-slate-400">
-              Collaborators can invite you to documents using this email.
+            <p className="font-mono text-[10px] text-ink-muted">
+              Collaborators wrap Document Keys to this registered identity.
             </p>
 
             {successMsg && (
-              <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">
+              <div className="p-2.5 rounded-xs bg-canvas-subtle border border-sage text-xs font-mono text-status-success">
                 {successMsg}
               </div>
             )}
             {errorMsg && (
-              <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+              <div className="p-2.5 rounded-xs bg-canvas-subtle border border-status-danger text-xs font-mono text-status-danger">
                 {errorMsg}
               </div>
             )}
           </form>
 
-          <div className="border-t border-slate-100" />
+          <div className="border-t border-border" />
 
           {/* User ID & Public Key Info */}
           <div className="space-y-3">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                  <Fingerprint className="w-3.5 h-3.5 text-slate-400" />
-                  User UUID
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="font-mono text-[10px] font-bold uppercase text-ink-muted flex items-center gap-1">
+                  <Fingerprint className="w-3 h-3 text-ink-muted" />
+                  02 / USER UUID
                 </label>
                 <button
                   onClick={copyUserId}
-                  className="text-[11px] text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium"
+                  className="text-[10px] font-mono text-ink-secondary hover:text-ink flex items-center gap-1"
                 >
-                  {copiedId ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedId ? "Copied" : "Copy"}</span>
+                  {copiedId ? <Check className="w-3 h-3 text-status-success" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedId ? "COPIED" : "COPY"}</span>
                 </button>
               </div>
-              <p className="text-xs font-mono bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 truncate">
-                {userId || "Loading..."}
+              <p className="text-xs font-mono bg-canvas-DEFAULT border border-border px-3 py-1.5 rounded-xs text-ink truncate">
+                {userId || "LOADING..."}
               </p>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                  <Key className="w-3.5 h-3.5 text-slate-400" />
-                  ECDH P-256 Public Key (SPKI)
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="font-mono text-[10px] font-bold uppercase text-ink-muted flex items-center gap-1">
+                  <Key className="w-3 h-3 text-ink-muted" />
+                  03 / ECDH P-256 PUBLIC KEY (SPKI)
                 </label>
                 <button
                   onClick={copyPublicKey}
-                  className="text-[11px] text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium"
+                  className="text-[10px] font-mono text-ink-secondary hover:text-ink flex items-center gap-1"
                 >
-                  {copiedKey ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedKey ? "Copied" : "Copy"}</span>
+                  {copiedKey ? <Check className="w-3 h-3 text-status-success" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedKey ? "COPIED" : "COPY"}</span>
                 </button>
               </div>
-              <p className="text-xs font-mono bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 truncate select-all">
-                {publicKey || "Loading..."}
+              <p className="text-[11px] font-mono bg-canvas-DEFAULT border border-border px-3 py-1.5 rounded-xs text-ink truncate select-all">
+                {publicKey || "LOADING..."}
               </p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400 flex items-center gap-1">
-            <Shield className="w-3 h-3 text-emerald-600" />
-            Private key stored only in this browser
+        <div className="px-5 py-3 bg-canvas-subtle border-t border-border flex items-center justify-between font-mono text-[10px] text-ink-muted">
+          <span className="flex items-center gap-1">
+            <Shield className="w-3 h-3 text-sage" />
+            PRIVATE KEY PERSISTED IN LOCAL BROWSER
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+            className="px-3 py-1 text-xs font-mono font-medium text-ink bg-canvas-surface hover:bg-canvas-neutral border border-border rounded-xs transition-colors"
           >
-            Close
+            CLOSE
           </button>
         </div>
       </div>
     </div>
   );
 }
+

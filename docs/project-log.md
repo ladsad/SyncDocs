@@ -15,11 +15,22 @@ A living record of the development timeline, key architectural decisions (ADRs),
 | **2026-09-07** | **Phase 3: Sharing, Roles & Key Distribution** | Implemented `permissions` table (`owner`/`editor`/`viewer`), ECDH P-256 asymmetric DK wrapping invite flow, persistent `CryptoVault` session identity, viewer write-suppression in editor & Yjs sync, and full-featured `ShareModal` UI. | Completed |
 | **2026-09-07** | **Production Readiness & Vercel Deployment** | Polished web metadata, dynamic document tab synchronization, SVG branding/favicon, live word/character counting, dashboard search, and configured Vercel deployment pipeline. | Completed |
 | **2026-09-07** | **First-Time Onboarding & Strict Access Control** | Added `OnboardingModal` for automatic browser keypair/email setup, removed unauthenticated deterministic key fallbacks, implemented strict access restriction gates in `EditorContainer`, and fixed PostgREST query filtering with incoming invite dashboard alerts. | Completed |
+| **2026-09-07** | **Pre-Phase 4: Light Technical Brutalism Design Overhaul** | Overhauled UI to a light-themed technical brutalist / Swiss-grid design language. Single 2D canvas, zero artificial depth/shadows, warm neutral & sage color palette, exposed structural grid, geometric radius (0–4px), monospace technical metrics, and flat structural panels. | Completed |
 | *Upcoming* | **Phase 4: Multi-Style Editing Surfaces** | Markdown (CodeMirror + live preview), LaTeX (CodeMirror + Tier 1 WASM compiler / Tier 2 Local Agent). | Planned |
 
 ---
 
 ## 2. Architectural Decision Records (ADRs)
+
+### ADR-016: Light Technical Brutalism & 2D Canvas Visual Language
+- **Context:** The initial prototype UI used generic SaaS patterns (floating rounded cards, drop shadows, gradient banners, saturated blues) that diluted the product's precision engineering identity and distracted from document content.
+- **Decision:** Adopt a strict **Light Technical Brutalism / Swiss-grid** design language:
+  1. *Single 2D Canvas:* Zero drop shadows, no floating cards, zero elevation layers. Visual separation achieved solely through 1px borders (`#D6CEC1`), background contrast, whitespace, and alignment.
+  2. *Color System:* Warm paper canvas (`#F7F2EB`), warm surfaces (`#EAE2D6`), dark charcoal ink (`#252822`), and primary sage accent (`#8B9A6E`).
+  3. *Restrained Geometry:* `0px` for structural panels/tables, `2px` for small chips/badges, `4px` for buttons/inputs. No bubbly rounding.
+  4. *Technical Typography:* Dual font hierarchy pairing Inter for prose with JetBrains Mono for identifiers, metrics, section numbers (e.g. `01 / ALL DOCUMENTS`), and system status indicators.
+- **Status:** Accepted.
+
 
 ### ADR-001: Zero-Knowledge Privacy & Client-Side Compilation
 - **Context:** Mainstream editors (Google Docs, Overleaf) process plaintext on servers. LaTeX compilation typically relies on server-side TeXLive.

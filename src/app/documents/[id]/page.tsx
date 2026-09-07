@@ -53,33 +53,37 @@ export default function DocumentEditorPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-3" />
-        <p className="text-slate-600 font-medium text-sm">Loading document...</p>
+      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center p-4 selection:bg-sage-soft">
+        <Loader2 className="w-6 h-6 animate-spin text-sage mb-3" />
+        <p className="font-mono text-xs text-ink-muted uppercase">LOADING DOCUMENT RECORD...</p>
       </div>
     );
   }
 
   if (error || !doc) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center">
-          <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center p-4 selection:bg-sage-soft">
+        <div className="max-w-md w-full bg-canvas-surface p-8 rounded-xs border border-border text-center space-y-4">
+          <div className="w-12 h-12 bg-canvas-subtle border border-border text-status-danger rounded-xs flex items-center justify-center mx-auto">
             <FileQuestion className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-bold text-slate-900 mb-2">
-            Document Not Found
-          </h2>
-          <p className="text-sm text-slate-500 mb-6">
-            The requested document does not exist or may have been deleted.
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Documents
-          </Link>
+          <div className="space-y-1">
+            <h2 className="font-mono text-sm font-bold uppercase text-ink">
+              DOCUMENT NOT FOUND
+            </h2>
+            <p className="text-xs text-ink-secondary">
+              The requested document identifier is invalid or has been deleted.
+            </p>
+          </div>
+          <div className="pt-2">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-sage hover:bg-sage-hover text-canvas-DEFAULT font-mono text-xs font-medium rounded-xs border border-sage transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>RETURN TO DASHBOARD</span>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -87,3 +91,4 @@ export default function DocumentEditorPage() {
 
   return <EditorContainer initialDocument={doc} />;
 }
+

@@ -1,6 +1,5 @@
 import React from "react";
 import { SaveStatus } from "@/types/document";
-import { Check, Loader2, AlertCircle, Clock } from "lucide-react";
 
 interface StatusBadgeProps {
   status: SaveStatus;
@@ -10,31 +9,32 @@ export function StatusBadge({ status }: StatusBadgeProps) {
   switch (status) {
     case "saved":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-full border border-emerald-200">
-          <Check className="w-3.5 h-3.5 text-emerald-600" />
-          Saved
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-mono font-medium text-status-success bg-canvas-subtle border border-border rounded-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-status-success" />
+          SAVED
         </span>
       );
     case "saving":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded-full border border-blue-200">
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
-          Saving...
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-mono font-medium text-sage-hover bg-canvas-subtle border border-sage/40 rounded-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-sage animate-pulse" />
+          SAVING...
         </span>
       );
     case "unsaved":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-50 rounded-full border border-amber-200">
-          <Clock className="w-3.5 h-3.5 text-amber-600" />
-          Unsaved changes
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-mono font-medium text-status-warning bg-canvas-subtle border border-status-warning/40 rounded-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-status-warning" />
+          UNSAVED
         </span>
       );
     case "error":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-50 rounded-full border border-rose-200">
-          <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-          Save failed
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-mono font-medium text-status-danger bg-canvas-subtle border border-status-danger/40 rounded-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-status-danger" />
+          SAVE ERROR
         </span>
       );
   }
 }
+

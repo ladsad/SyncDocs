@@ -26,22 +26,22 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
   if (!editor.isEditable) {
     return (
-      <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200 text-xs text-slate-500 font-medium">
-        <span className="w-2 h-2 rounded-full bg-slate-400" />
-        <span>View-only mode — editing and formatting toolbar are disabled for your role.</span>
+      <div className="flex items-center gap-2 px-4 py-2 bg-canvas-subtle border-b border-border text-[11px] font-mono text-ink-muted">
+        <span className="w-1.5 h-1.5 rounded-full bg-status-warning" />
+        <span>READ_ONLY MODE — TOOLBAR DISABLED FOR YOUR ROLE</span>
       </div>
     );
   }
 
   const btnClass = (isActive: boolean) =>
-    `p-1.5 rounded transition-colors text-sm flex items-center justify-center ${
+    `p-1.5 rounded-xs transition-colors text-xs flex items-center justify-center border ${
       isActive
-        ? "bg-slate-200 text-slate-900 font-semibold"
-        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+        ? "bg-sage-soft border-sage text-ink font-semibold"
+        : "border-transparent text-ink-secondary hover:bg-canvas-subtle hover:text-ink"
     }`;
 
   return (
-    <div className="flex flex-wrap items-center gap-1 p-2 bg-white border-b border-slate-200 sticky top-0 z-10">
+    <div className="flex flex-wrap items-center gap-1 p-1.5 bg-canvas-surface border-b border-border sticky top-0 z-10">
       <button
         type="button"
         onClick={() => editor.chain().focus().toggleBold().run()}
@@ -49,7 +49,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("bold"))}
         title="Bold"
       >
-        <Bold className="w-4 h-4" />
+        <Bold className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -58,7 +58,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("italic"))}
         title="Italic"
       >
-        <Italic className="w-4 h-4" />
+        <Italic className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -67,7 +67,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("strike"))}
         title="Strikethrough"
       >
-        <Strikethrough className="w-4 h-4" />
+        <Strikethrough className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -76,10 +76,10 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("code"))}
         title="Inline Code"
       >
-        <Code className="w-4 h-4" />
+        <Code className="w-3.5 h-3.5" />
       </button>
 
-      <div className="w-px h-5 bg-slate-200 mx-1" />
+      <div className="w-px h-4 bg-border mx-1" />
 
       <button
         type="button"
@@ -87,7 +87,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("heading", { level: 1 }))}
         title="Heading 1"
       >
-        <Heading1 className="w-4 h-4" />
+        <Heading1 className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -95,7 +95,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("heading", { level: 2 }))}
         title="Heading 2"
       >
-        <Heading2 className="w-4 h-4" />
+        <Heading2 className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -103,10 +103,10 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("heading", { level: 3 }))}
         title="Heading 3"
       >
-        <Heading3 className="w-4 h-4" />
+        <Heading3 className="w-3.5 h-3.5" />
       </button>
 
-      <div className="w-px h-5 bg-slate-200 mx-1" />
+      <div className="w-px h-4 bg-border mx-1" />
 
       <button
         type="button"
@@ -114,7 +114,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("bulletList"))}
         title="Bullet List"
       >
-        <List className="w-4 h-4" />
+        <List className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -122,7 +122,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("orderedList"))}
         title="Numbered List"
       >
-        <ListOrdered className="w-4 h-4" />
+        <ListOrdered className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -130,7 +130,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("blockquote"))}
         title="Blockquote"
       >
-        <Quote className="w-4 h-4" />
+        <Quote className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -138,7 +138,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(editor.isActive("codeBlock"))}
         title="Code Block"
       >
-        <SquareCode className="w-4 h-4" />
+        <SquareCode className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -146,10 +146,10 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(false)}
         title="Horizontal Rule"
       >
-        <Minus className="w-4 h-4" />
+        <Minus className="w-3.5 h-3.5" />
       </button>
 
-      <div className="w-px h-5 bg-slate-200 mx-1" />
+      <div className="w-px h-4 bg-border mx-1" />
 
       <button
         type="button"
@@ -158,7 +158,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(false)}
         title="Undo"
       >
-        <Undo2 className="w-4 h-4" />
+        <Undo2 className="w-3.5 h-3.5" />
       </button>
       <button
         type="button"
@@ -167,8 +167,9 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         className={btnClass(false)}
         title="Redo"
       >
-        <Redo2 className="w-4 h-4" />
+        <Redo2 className="w-3.5 h-3.5" />
       </button>
     </div>
   );
 }
+

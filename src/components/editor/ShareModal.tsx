@@ -179,83 +179,81 @@ export function ShareModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 selection:bg-sage-soft selection:text-ink">
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-lg bg-canvas-surface border border-border rounded-xs overflow-hidden flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
-              <Share2 className="w-5 h-5" />
-            </div>
+        <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-canvas-surface">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 bg-sage rounded-xs" />
             <div>
-              <h2 className="text-base font-semibold text-slate-900">
-                Share & Permissions
+              <h2 className="font-mono text-xs font-bold uppercase text-ink">
+                SHARE & PERMISSIONS
               </h2>
-              <p className="text-xs text-slate-500 line-clamp-1 max-w-xs">
-                {documentTitle || "Untitled Document"}
+              <p className="font-mono text-[10px] text-ink-muted truncate max-w-xs">
+                {documentTitle || "UNTITLED DOCUMENT"}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-1 text-ink-muted hover:text-ink hover:bg-canvas-subtle rounded-xs transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto">
+        <div className="p-5 space-y-5 overflow-y-auto">
           {/* Section 1: Direct Hash Link */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-              Shareable Key Link (Zero-Knowledge)
+          <div className="space-y-2">
+            <label className="block font-mono text-[10px] font-bold uppercase text-ink-muted">
+              01 / DIRECT ACCESS KEY LINK (E2EE)
             </label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 readOnly
-                value={shareUrl || "Generating secure link..."}
-                className="flex-1 text-xs font-mono bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-slate-700 select-all focus:outline-none focus:ring-1 focus:ring-blue-500"
+                value={shareUrl || "Generating secure key..."}
+                className="flex-1 text-xs font-mono bg-canvas-DEFAULT border border-border px-3 py-2 rounded-xs text-ink select-all focus:outline-none focus:border-sage"
               />
               <button
                 type="button"
                 onClick={handleCopyLink}
                 disabled={!shareUrl}
-                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors shadow-sm shrink-0 ${
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium rounded-xs border transition-colors shrink-0 ${
                   copied
-                    ? "bg-emerald-600 text-white"
-                    : "bg-slate-900 hover:bg-slate-800 text-white"
+                    ? "bg-sage-soft border-sage text-ink"
+                    : "bg-sage hover:bg-sage-hover text-canvas-DEFAULT border-sage"
                 }`}
               >
                 {copied ? (
                   <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Copied</span>
+                    <Check className="w-3.5 h-3.5 text-status-success" />
+                    <span>COPIED</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5" />
-                    <span>Copy</span>
+                    <span>COPY LINK</span>
                   </>
                 )}
               </button>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1">
-              <Lock className="w-3 h-3 text-emerald-600" />
-              The key is in the URL hash (<code className="font-mono">#key=...</code>) and is never sent to the server.
+            <p className="font-mono text-[10px] text-ink-muted flex items-center gap-1">
+              <Lock className="w-3 h-3 text-sage" />
+              Document Key is appended in URL hash (<code className="text-ink font-semibold">#key=...</code>) and never transmitted to server.
             </p>
           </div>
 
-          <div className="border-t border-slate-100" />
+          <div className="border-t border-border" />
 
           {/* Section 2: Invite by Email */}
           {canManageAccess ? (
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-                Invite Collaborator by Email
+            <div className="space-y-2">
+              <label className="block font-mono text-[10px] font-bold uppercase text-ink-muted">
+                02 / INVITE COLLABORATOR BY EMAIL
               </label>
               <form onSubmit={handleInvite} className="space-y-2.5">
                 <div className="flex gap-2">
@@ -263,51 +261,51 @@ export function ShareModal({
                     type="email"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="friend@example.com"
+                    placeholder="teammate@company.com"
                     required
-                    className="flex-1 text-sm bg-white border border-slate-200 px-3 py-2 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 text-xs font-mono bg-canvas-DEFAULT border border-border px-3 py-2 rounded-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-sage"
                   />
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value as DocumentRole)}
-                    className="text-xs bg-slate-50 border border-slate-200 px-2.5 py-2 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="text-xs font-mono bg-canvas-DEFAULT border border-border px-2.5 py-2 rounded-xs text-ink focus:outline-none focus:border-sage"
                   >
-                    <option value="editor">Editor</option>
-                    <option value="viewer">Viewer</option>
+                    <option value="editor">EDITOR</option>
+                    <option value="viewer">VIEWER</option>
                   </select>
                   <button
                     type="submit"
                     disabled={isInviting || !inviteEmail.trim()}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 shrink-0"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-mono font-medium text-canvas-DEFAULT bg-sage hover:bg-sage-hover border border-sage rounded-xs transition-colors disabled:opacity-50 shrink-0"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
-                    <span>{isInviting ? "Creating..." : "Invite"}</span>
+                    <span>{isInviting ? "CREATING..." : "INVITE"}</span>
                   </button>
                 </div>
 
                 {inviteError && (
-                  <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                  <div className="p-2.5 rounded-xs bg-canvas-subtle border border-status-danger text-xs font-mono text-status-danger">
                     {inviteError}
                   </div>
                 )}
                 {inviteSuccess && (
-                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-2">
-                    <p className="font-medium">{inviteSuccess.message}</p>
+                  <div className="p-3 rounded-xs bg-canvas-subtle border border-sage text-xs font-mono text-ink space-y-2">
+                    <p className="font-semibold text-status-success">{inviteSuccess.message}</p>
                     {inviteSuccess.inviteUrl && (
                       <div className="flex items-center gap-2 pt-1">
                         <input
                           type="text"
                           readOnly
                           value={inviteSuccess.inviteUrl}
-                          className="flex-1 text-xs font-mono bg-white border border-emerald-300 px-2.5 py-1.5 rounded text-emerald-900 select-all"
+                          className="flex-1 text-[11px] font-mono bg-canvas-DEFAULT border border-border px-2 py-1 rounded-xs text-ink select-all"
                         />
                         <button
                           type="button"
                           onClick={() => handleCopySpecificInvite(inviteSuccess.inviteUrl!, "latest")}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shrink-0 flex items-center gap-1"
+                          className="px-2.5 py-1 bg-sage hover:bg-sage-hover text-canvas-DEFAULT rounded-xs text-xs font-mono shrink-0 flex items-center gap-1"
                         >
                           {copiedInviteId === "latest" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                          <span>{copiedInviteId === "latest" ? "Copied" : "Copy Link"}</span>
+                          <span>{copiedInviteId === "latest" ? "COPIED" : "COPY"}</span>
                         </button>
                       </div>
                     )}
@@ -316,44 +314,44 @@ export function ShareModal({
               </form>
             </div>
           ) : (
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-500">
-              You have view-only permissions. Only owners and editors can invite collaborators.
+            <div className="p-3 bg-canvas-subtle rounded-xs border border-border text-xs font-mono text-ink-muted">
+              VIEW_ONLY: ONLY OWNERS AND EDITORS MAY ISSUE INVITATIONS.
             </div>
           )}
 
           {/* Section 3: Pending Invitations */}
           {invitations.length > 0 && (
             <>
-              <div className="border-t border-slate-100" />
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-amber-600 mb-2 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" />
-                  Pending Invitations ({invitations.length})
+              <div className="border-t border-border" />
+              <div className="space-y-2">
+                <label className="block font-mono text-[10px] font-bold uppercase text-status-warning flex items-center gap-1.5">
+                  <Clock className="w-3 h-3" />
+                  03 / PENDING INVITATIONS [{invitations.length}]
                 </label>
-                <div className="divide-y divide-slate-100 max-h-40 overflow-y-auto">
+                <div className="divide-y divide-border border border-border rounded-xs max-h-40 overflow-y-auto">
                   {invitations.map((inv) => (
                     <div
                       key={inv.id}
-                      className="py-2.5 flex items-center justify-between gap-2 text-xs bg-amber-50/40 px-3 rounded-lg my-1"
+                      className="py-2 px-3 flex items-center justify-between gap-2 text-xs bg-canvas-surface"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-800 truncate">{inv.email}</p>
-                        <p className="text-[10px] text-amber-700 font-medium">
-                          Role: <span className="capitalize">{inv.role}</span> • Unregistered recipient
+                        <p className="font-mono text-xs font-medium text-ink truncate">{inv.email}</p>
+                        <p className="font-mono text-[10px] text-ink-muted">
+                          ROLE: {inv.role.toUpperCase()} • PENDING FIRST VISIT
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleCopySpecificInvite(inv.invite_url || "", inv.id)}
-                          className="px-2.5 py-1 text-xs font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 rounded flex items-center gap-1"
+                          className="px-2 py-0.5 text-[11px] font-mono text-ink bg-canvas-subtle hover:bg-canvas-neutral border border-border rounded-xs flex items-center gap-1"
                           title="Copy personalized invite link"
                         >
-                          {copiedInviteId === inv.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                          <span>{copiedInviteId === inv.id ? "Copied" : "Copy Link"}</span>
+                          {copiedInviteId === inv.id ? <Check className="w-3 h-3 text-status-success" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedInviteId === inv.id ? "COPIED" : "LINK"}</span>
                         </button>
                         <button
                           onClick={() => handleRevokeInvite(inv.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                          className="p-1 text-ink-muted hover:text-status-danger rounded-xs transition-colors"
                           title="Revoke invitation"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -366,46 +364,46 @@ export function ShareModal({
             </>
           )}
 
-          <div className="border-t border-slate-100" />
+          <div className="border-t border-border" />
 
           {/* Section 4: Active Collaborators List */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                <Users className="w-3.5 h-3.5" />
-                Active Members ({collaborators.length})
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="font-mono text-[10px] font-bold uppercase text-ink-muted flex items-center gap-1">
+                <Users className="w-3 h-3" />
+                04 / ACTIVE MEMBERS [{collaborators.length}]
               </label>
             </div>
 
             {isLoading ? (
-              <div className="py-4 text-center text-xs text-slate-400">
-                Loading collaborators...
+              <div className="py-4 text-center font-mono text-xs text-ink-muted">
+                LOADING COLLABORATOR REGISTRY...
               </div>
             ) : collaborators.length === 0 ? (
-              <div className="py-4 text-center text-xs text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                No active collaborators yet.
+              <div className="py-4 text-center font-mono text-xs text-ink-muted bg-canvas-subtle rounded-xs border border-border">
+                NO OTHER ACTIVE COLLABORATORS RECORDED.
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+              <div className="divide-y divide-border border border-border rounded-xs max-h-48 overflow-y-auto">
                 {collaborators.map((c) => (
                   <div
                     key={c.userId}
-                    className="py-2.5 flex items-center justify-between gap-3 text-sm"
+                    className="py-2 px-3 flex items-center justify-between gap-3 text-xs bg-canvas-surface"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-800 text-xs truncate">
+                      <p className="font-mono text-xs font-medium text-ink truncate">
                         {c.email || c.userId}
                       </p>
-                      <p className="text-[10px] text-slate-400">
-                        {c.role === "owner" ? "Document Creator" : "Active Member"}
+                      <p className="font-mono text-[10px] text-ink-muted">
+                        {c.role === "owner" ? "DOCUMENT OWNER" : "MEMBER"}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2">
                       {c.role === "owner" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded">
-                          <Crown className="w-3 h-3" />
-                          Owner
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-ink bg-canvas-subtle border border-border px-1.5 py-0.5 rounded-xs">
+                          <Crown className="w-3 h-3 text-sage" />
+                          OWNER
                         </span>
                       ) : canManageAccess ? (
                         <>
@@ -414,21 +412,21 @@ export function ShareModal({
                             onChange={(e) =>
                               handleRoleChange(c.userId, e.target.value as DocumentRole)
                             }
-                            className="text-xs bg-white border border-slate-200 px-2 py-1 rounded text-slate-700 focus:outline-none"
+                            className="text-[11px] font-mono bg-canvas-DEFAULT border border-border px-1.5 py-0.5 rounded-xs text-ink focus:outline-none"
                           >
-                            <option value="editor">Editor</option>
-                            <option value="viewer">Viewer</option>
+                            <option value="editor">EDITOR</option>
+                            <option value="viewer">VIEWER</option>
                           </select>
                           <button
                             onClick={() => handleRevokeCollaborator(c.userId)}
-                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                            className="p-1 text-ink-muted hover:text-status-danger hover:bg-canvas-subtle rounded-xs transition-colors"
                             title="Revoke access"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </>
                       ) : (
-                        <span className="text-xs text-slate-500 font-medium capitalize">
+                        <span className="font-mono text-[10px] text-ink-secondary uppercase">
                           {c.role}
                         </span>
                       )}
@@ -441,15 +439,16 @@ export function ShareModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+        <div className="px-5 py-3 bg-canvas-subtle border-t border-border flex items-center justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+            className="px-4 py-1.5 text-xs font-mono font-medium text-ink hover:text-ink bg-canvas-surface hover:bg-canvas-neutral border border-border rounded-xs transition-colors"
           >
-            Done
+            CLOSE
           </button>
         </div>
       </div>
     </div>
   );
 }
+

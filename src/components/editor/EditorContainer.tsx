@@ -368,55 +368,69 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
             LaTeX editor surface will be enabled in future phases.
           </div>
         );
+      case "markdown":
+        return (
+          <div className="p-8 border border-border rounded-xs bg-canvas-surface text-center font-mono text-xs text-ink-muted">
+            02 / MARKDOWN SURFACE — SCHEDULED FOR PHASE 4
+          </div>
+        );
+      case "latex":
+        return (
+          <div className="p-8 border border-border rounded-xs bg-canvas-surface text-center font-mono text-xs text-ink-muted">
+            03 / LATEX SURFACE — SCHEDULED FOR PHASE 4 (TIER 1 WASM)
+          </div>
+        );
     }
   };
 
   if (hasAccess === null) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-3" />
-        <p className="text-slate-600 font-medium text-sm">Verifying document access & cryptographic keys...</p>
+      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center p-4 selection:bg-sage-soft">
+        <Loader2 className="w-6 h-6 animate-spin text-sage mb-3" />
+        <p className="font-mono text-xs text-ink-muted uppercase">
+          VERIFYING ACCESS & RESOLVING ENCRYPTION KEYS...
+        </p>
       </div>
     );
   }
 
   if (hasAccess === false) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="min-h-screen bg-canvas flex flex-col selection:bg-sage-soft">
         {/* Navigation Bar */}
-        <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+        <header className="bg-canvas-surface border-b border-border px-4 py-3 flex items-center justify-between">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800 hover:text-slate-900 transition-colors"
+            className="inline-flex items-center gap-2 font-mono text-xs font-semibold text-ink hover:text-sage transition-colors uppercase"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>SyncDocs</span>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>&larr; ALL DOCUMENTS</span>
           </Link>
 
           <button
             onClick={() => setIsProfileModalOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-ink-secondary hover:text-ink bg-canvas-subtle hover:bg-canvas-neutral border border-border rounded-xs transition-colors"
             title="View or change your email identity"
           >
-            <User className="w-3.5 h-3.5 text-slate-500" />
-            <span>{userEmail || "Identity"}</span>
+            <User className="w-3.5 h-3.5 text-ink-muted" />
+            <span>{userEmail || "IDENTITY"}</span>
           </button>
         </header>
 
         {/* Restricted Notice */}
         <main className="flex-1 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-slate-200 shadow-sm text-center space-y-6">
-            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-100 shadow-inner">
-              <Lock className="w-7 h-7 text-rose-600" />
+          <div className="max-w-md w-full bg-canvas-surface p-8 border border-border rounded-xs text-center space-y-6">
+            <div className="w-12 h-12 bg-canvas-subtle border border-border text-status-danger rounded-xs flex items-center justify-center mx-auto">
+              <Lock className="w-6 h-6" />
             </div>
 
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-slate-900">
-                Document Access Restricted
+            <div className="space-y-1.5">
+              <h2 className="font-mono text-sm font-bold uppercase text-ink">
+                00 / ACCESS RESTRICTED
               </h2>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                This document is end-to-end encrypted. Your current identity{" "}
-                <strong className="text-slate-900 underline decoration-slate-300">
+              <p className="text-xs text-ink-secondary leading-relaxed">
+                This document is end-to-end encrypted. Your identity{" "}
+                <strong className="text-ink font-mono underline decoration-border-structural">
                   {userEmail || "anonymous"}
                 </strong>{" "}
                 has not been granted access by the owner.
@@ -425,8 +439,8 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
 
             {/* Direct Key / Invite Unlock Input */}
             <form onSubmit={handleUnlockWithKey} className="space-y-2 text-left pt-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Have a share link or secret key?
+              <label className="block font-mono text-[10px] font-bold uppercase text-ink-muted">
+                HAVE A SECRET KEY OR INVITE LINK?
               </label>
               <div className="flex gap-2">
                 <input
@@ -434,34 +448,34 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
                   value={directKeyInput}
                   onChange={(e) => setDirectKeyInput(e.target.value)}
                   placeholder="Paste #key=... or invite URL"
-                  className="flex-1 text-xs bg-white border border-slate-200 px-3 py-2 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 text-xs font-mono bg-canvas-DEFAULT border border-border px-3 py-2 rounded-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-sage"
                 />
                 <button
                   type="submit"
                   disabled={unlocking}
-                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors shrink-0 disabled:opacity-50"
+                  className="px-3.5 py-2 bg-sage hover:bg-sage-hover text-canvas-DEFAULT text-xs font-medium rounded-xs border border-sage transition-colors shrink-0 disabled:opacity-50"
                 >
-                  {unlocking ? "Unlocking..." : "Unlock"}
+                  {unlocking ? "UNLOCKING..." : "UNLOCK"}
                 </button>
               </div>
               {unlockError && (
-                <p className="text-xs text-rose-600">{unlockError}</p>
+                <p className="font-mono text-[11px] text-status-danger">{unlockError}</p>
               )}
             </form>
 
-            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-2.5">
+            <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
                 onClick={() => setIsProfileModalOpen(true)}
-                className="flex-1 py-2 px-3 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                className="flex-1 py-2 px-3 text-xs font-mono font-medium text-ink bg-canvas-subtle hover:bg-canvas-neutral border border-border rounded-xs transition-colors"
               >
-                Switch Identity
+                SWITCH IDENTITY
               </button>
               <Link
                 href="/"
-                className="flex-1 inline-flex items-center justify-center py-2 px-3 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-sm transition-colors"
+                className="flex-1 inline-flex items-center justify-center py-2 px-3 text-xs font-mono font-medium text-canvas-DEFAULT bg-ink hover:bg-ink/90 rounded-xs transition-colors"
               >
-                Back to Documents
+                BACK TO LIST
               </Link>
             </div>
           </div>
@@ -480,17 +494,17 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Top Navigation Bar */}
-      <header className="border-b border-slate-200 bg-white sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-canvas flex flex-col selection:bg-sage-soft selection:text-ink">
+      {/* Top Architectural Navigation Bar */}
+      <header className="border-b border-border bg-canvas-surface sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <Link
               href="/"
-              className="p-1.5 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+              className="p-1 rounded-xs text-ink-muted hover:text-ink hover:bg-canvas-subtle border border-transparent hover:border-border transition-colors"
               title="Back to all documents"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
             </Link>
 
             <input
@@ -499,158 +513,101 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
               readOnly={!isEditable}
               onChange={handleTitleChange}
               placeholder="Untitled Document"
-              className={`font-semibold text-lg text-slate-900 bg-transparent border border-transparent px-2 py-0.5 rounded-md focus:outline-none w-full max-w-md transition-colors ${
+              className={`font-semibold text-base text-ink bg-transparent border border-transparent px-2 py-0.5 rounded-xs focus:outline-none w-full max-w-md transition-colors ${
                 isEditable
-                  ? "hover:border-slate-200 focus:border-blue-500 focus:bg-white"
-                  : "cursor-default text-slate-700"
+                  ? "hover:border-border focus:border-sage focus:bg-canvas-DEFAULT"
+                  : "cursor-default text-ink"
               }`}
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* User Role Badge */}
-            {userRole === "owner" && (
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 border border-purple-200 text-purple-800 rounded-lg text-xs font-medium"
-                title="You are the Owner of this document"
-              >
-                <Crown className="w-3.5 h-3.5 text-purple-600" />
-                <span>Owner</span>
-              </div>
-            )}
-            {userRole === "editor" && (
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-xs font-medium"
-                title="You are an Editor on this document"
-              >
-                <Edit3 className="w-3.5 h-3.5 text-blue-600" />
-                <span>Editor</span>
-              </div>
-            )}
-            {userRole === "viewer" && (
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-medium"
-                title="You have Read-Only (Viewer) access"
-              >
-                <Eye className="w-3.5 h-3.5 text-amber-600" />
-                <span>Viewer</span>
-              </div>
-            )}
+            <div
+              className="hidden sm:flex items-center gap-1 font-mono text-[10px] uppercase text-ink-secondary bg-canvas-subtle border border-border px-2 py-1 rounded-xs"
+              title={`Your role: ${userRole}`}
+            >
+              <span>ROLE:</span>
+              <span className="font-bold text-ink">{userRole}</span>
+            </div>
 
             {/* E2EE Security Badge */}
             {isEncrypted && (
               <div
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/80 text-emerald-800 rounded-lg text-xs font-medium"
-                title="End-to-End Encrypted with client-side AES-256-GCM. Plaintext never leaves your browser."
+                className="hidden md:flex items-center gap-1.5 font-mono text-[10px] text-status-success bg-canvas-subtle border border-border px-2 py-1 rounded-xs"
+                title="End-to-End Encrypted with client-side AES-256-GCM"
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="w-1.5 h-1.5 rounded-full bg-status-success" />
                 <span>E2EE (AES-256)</span>
               </div>
             )}
 
             {/* Live Sync Status & Active Collaborators */}
             {isSupabase && (
-              <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+              <div className="flex items-center gap-2 font-mono text-[10px] text-ink-secondary px-2 py-1 bg-canvas-subtle border border-border rounded-xs">
                 <div
-                  className="flex items-center gap-1 font-medium"
-                  title={isSyncConnected ? "Realtime sync connected" : "Connecting to sync room..."}
+                  className="flex items-center gap-1.5"
+                  title={isSyncConnected ? "Realtime sync connected" : "Connecting..."}
                 >
-                  {isSyncConnected ? (
-                    <Wifi className="w-3.5 h-3.5 text-emerald-600" />
-                  ) : (
-                    <WifiOff className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-                  )}
-                  <span className="hidden md:inline">
-                    {isSyncConnected ? "Live Sync" : "Connecting..."}
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      isSyncConnected ? "bg-status-success" : "bg-status-warning animate-pulse"
+                    }`}
+                  />
+                  <span className="hidden lg:inline">
+                    {isSyncConnected ? "LIVE" : "CONNECTING"}
                   </span>
                 </div>
 
-                <div className="w-px h-3.5 bg-slate-300" />
+                <div className="w-px h-3 bg-border" />
 
-                {/* Collaborator Avatars */}
                 <div className="flex items-center gap-1" title={`${collaborators.length} active in room`}>
-                  <Users className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="font-semibold text-slate-700">{collaborators.length}</span>
-                  <div className="hidden sm:flex items-center -space-x-1.5 ml-1">
-                    {collaborators.map((c) => (
-                      <span
-                        key={c.clientId}
-                        style={{ backgroundColor: c.color }}
-                        className="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-white uppercase shadow-sm"
-                        title={c.name}
-                      >
-                        {c.name.replace("Guest ", "").charAt(0)}
-                      </span>
-                    ))}
-                  </div>
+                  <Users className="w-3 h-3 text-ink-muted" />
+                  <span className="font-bold text-ink">{collaborators.length}</span>
                 </div>
               </div>
             )}
 
-            {/* Storage Mode indicator */}
-            <div
-              className="hidden lg:flex items-center gap-1 text-xs text-slate-500 px-2 py-1 bg-slate-100 rounded"
-              title={
-                isSupabase
-                  ? "Connected to Supabase Postgres"
-                  : "Using Local Storage"
-              }
-            >
-              {isSupabase ? (
-                <>
-                  <Database className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Supabase</span>
-                </>
-              ) : (
-                <>
-                  <HardDrive className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Local Mode</span>
-                </>
-              )}
-            </div>
-
             <StatusBadge status={isEditable ? saveStatus : "saved"} />
 
-            {/* Profile / Identity Switcher */}
+            {/* Profile / Identity Button */}
             <button
               onClick={() => setIsProfileModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors"
-              title="View your public key and edit your email identity"
+              className="hidden sm:flex items-center gap-1 px-2 py-1 text-[11px] font-mono text-ink-secondary hover:text-ink bg-canvas-subtle hover:bg-canvas-neutral border border-border rounded-xs transition-colors"
+              title="View your public key and edit email identity"
             >
-              <User className="w-3.5 h-3.5 text-slate-500" />
-              <span className="max-w-[120px] truncate hidden sm:inline">
-                {userEmail || "Identity"}
-              </span>
+              <User className="w-3 h-3 text-ink-muted" />
+              <span className="max-w-[100px] truncate">{userEmail || "IDENTITY"}</span>
             </button>
 
             <button
               onClick={() => setIsShareModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md shadow-sm transition-colors"
-              title="Share document & manage collaborator permissions"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-mono text-ink bg-canvas-subtle hover:bg-canvas-neutral border border-border rounded-xs transition-colors"
+              title="Share document & permissions"
             >
-              <Share2 className="w-3.5 h-3.5 text-blue-600" />
-              <span>Share</span>
+              <Share2 className="w-3 h-3 text-ink-muted" />
+              <span>SHARE</span>
             </button>
 
             {isEditable ? (
               <button
                 onClick={handleManualSave}
                 disabled={saveStatus === "saving"}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md shadow-sm transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-medium text-canvas-DEFAULT bg-sage hover:bg-sage-hover border border-sage rounded-xs transition-colors disabled:opacity-50"
               >
-                <Save className="w-4 h-4" />
-                <span className="hidden sm:inline">Save</span>
+                <Save className="w-3 h-3" />
+                <span>SAVE</span>
               </button>
             ) : (
-              <span className="px-2.5 py-1 text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 rounded-md">
-                Read Only
+              <span className="px-2 py-0.5 font-mono text-[10px] text-ink-muted bg-canvas-subtle border border-border rounded-xs">
+                READ_ONLY
               </span>
             )}
           </div>
         </div>
       </header>
 
-      {/* Main Editing Surface */}
+      {/* Main Editing Surface Canvas */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6">
         {renderEditorSurface()}
       </main>
@@ -673,3 +630,4 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
     </div>
   );
 }
+
