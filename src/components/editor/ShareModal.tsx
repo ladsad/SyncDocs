@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { DocumentCollaborator, DocumentRole } from "@/types/document";
+import { DocumentCollaborator, DocumentInvitation, DocumentRole } from "@/types/document";
 import {
   shareDocumentWithEmail,
   fetchDocumentCollaborators,
+  fetchDocumentInvitations,
+  revokeDocumentInvitation,
   updateCollaboratorRole,
   revokeCollaboratorAccess,
 } from "@/lib/crypto/document-crypto";
@@ -19,6 +21,9 @@ import {
   Lock,
   Users,
   Crown,
+  Clock,
+  ExternalLink,
+  Sparkles,
 } from "lucide-react";
 
 interface ShareModalProps {
@@ -42,14 +47,16 @@ export function ShareModal({
   const [inviteRole, setInviteRole] = useState<DocumentRole>("editor");
   const [isInviting, setIsInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<{ message: string; inviteUrl?: string } | null>(null);
 
   const [collaborators, setCollaborators] = useState<DocumentCollaborator[]>([]);
-  const [isLoadingCollabs, setIsLoadingCollabs] = useState(true);
+  const [invitations, setInvitations] = useState<DocumentInvitation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
 
   const canManageAccess = currentUserRole === "owner" || currentUserRole === "editor";
 
-  // Load share URL and collaborators on open
+  // Load share URL, collaborators, and pending invites on open
   useEffect(() => {
     if (!isOpen) return;
 
@@ -61,22 +68,26 @@ export function ShareModal({
       })
       .catch((e) => console.warn("Could not generate shareable URL:", e));
 
-    loadCollaborators();
+    loadAll();
 
     return () => {
       isMounted = false;
     };
   }, [isOpen, documentId]);
 
-  const loadCollaborators = async () => {
-    setIsLoadingCollabs(true);
+  const loadAll = async () => {
+    setIsLoading(true);
     try {
-      const collabs = await fetchDocumentCollaborators(documentId);
+      const [collabs, invites] = await Promise.all([
+        fetchDocumentCollaborators(documentId),
+        fetchDocumentInvitations(documentId),
+      ]);
       setCollaborators(collabs);
+      setInvitations(invites);
     } catch (err) {
-      console.warn("Failed to load collaborators:", err);
+      console.warn("Failed to load collaborators/invites:", err);
     } finally {
-      setIsLoadingCollabs(false);
+      setIsLoading(false);
     }
   };
 
@@ -91,6 +102,16 @@ export function ShareModal({
     }
   };
 
+  const handleCopySpecificInvite = async (inviteUrl: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopiedInviteId(id);
+      setTimeout(() => setCopiedInviteId(null), 2000);
+    } catch (e) {
+      console.error("Failed to copy invite url:", e);
+    }
+  };
+
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim() || isInviting) return;
@@ -102,9 +123,18 @@ export function ShareModal({
     try {
       const result = await shareDocumentWithEmail(documentId, inviteEmail, inviteRole);
       if (result.success) {
-        setInviteSuccess(`Invited ${inviteEmail} as ${inviteRole}.`);
+        if (result.isPendingInvite && result.inviteUrl) {
+          setInviteSuccess({
+            message: `Pending invite created for ${inviteEmail}. Send this direct link to grant them instant ${inviteRole} access on their first visit:`,
+            inviteUrl: result.inviteUrl,
+          });
+        } else {
+          setInviteSuccess({
+            message: `Invited ${inviteEmail} as ${inviteRole} (Direct E2EE key wrapped).`,
+          });
+        }
         setInviteEmail("");
-        await loadCollaborators();
+        await loadAll();
       } else {
         setInviteError(result.error || "Failed to send invitation.");
       }
@@ -126,13 +156,23 @@ export function ShareModal({
     }
   };
 
-  const handleRevoke = async (userId: string) => {
+  const handleRevokeCollaborator = async (userId: string) => {
     if (!confirm("Revoke this user's access?")) return;
     try {
       await revokeCollaboratorAccess(documentId, userId);
       setCollaborators((prev) => prev.filter((c) => c.userId !== userId));
     } catch (err) {
       console.error("Failed to revoke access:", err);
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    if (!confirm("Revoke this pending invitation?")) return;
+    try {
+      await revokeDocumentInvitation(documentId, inviteId);
+      setInvitations((prev) => prev.filter((inv) => inv.id !== inviteId));
+    } catch (err) {
+      console.error("Failed to revoke invitation:", err);
     }
   };
 
@@ -205,7 +245,7 @@ export function ShareModal({
             </div>
             <p className="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1">
               <Lock className="w-3 h-3 text-emerald-600" />
-              The decryption key is in the URL hash (<code className="font-mono">#key=...</code>) and is never sent to the server.
+              The key is in the URL hash (<code className="font-mono">#key=...</code>) and is never sent to the server.
             </p>
           </div>
 
@@ -223,7 +263,7 @@ export function ShareModal({
                     type="email"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="colleague@example.com"
+                    placeholder="friend@example.com"
                     required
                     className="flex-1 text-sm bg-white border border-slate-200 px-3 py-2 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -241,7 +281,7 @@ export function ShareModal({
                     className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 shrink-0"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
-                    <span>{isInviting ? "Wrapping..." : "Invite"}</span>
+                    <span>{isInviting ? "Creating..." : "Invite"}</span>
                   </button>
                 </div>
 
@@ -251,8 +291,26 @@ export function ShareModal({
                   </div>
                 )}
                 {inviteSuccess && (
-                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">
-                    {inviteSuccess}
+                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-2">
+                    <p className="font-medium">{inviteSuccess.message}</p>
+                    {inviteSuccess.inviteUrl && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          readOnly
+                          value={inviteSuccess.inviteUrl}
+                          className="flex-1 text-xs font-mono bg-white border border-emerald-300 px-2.5 py-1.5 rounded text-emerald-900 select-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleCopySpecificInvite(inviteSuccess.inviteUrl!, "latest")}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shrink-0 flex items-center gap-1"
+                        >
+                          {copiedInviteId === "latest" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedInviteId === "latest" ? "Copied" : "Copy Link"}</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </form>
@@ -263,24 +321,69 @@ export function ShareModal({
             </div>
           )}
 
+          {/* Section 3: Pending Invitations */}
+          {invitations.length > 0 && (
+            <>
+              <div className="border-t border-slate-100" />
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-amber-600 mb-2 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  Pending Invitations ({invitations.length})
+                </label>
+                <div className="divide-y divide-slate-100 max-h-40 overflow-y-auto">
+                  {invitations.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="py-2.5 flex items-center justify-between gap-2 text-xs bg-amber-50/40 px-3 rounded-lg my-1"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-slate-800 truncate">{inv.email}</p>
+                        <p className="text-[10px] text-amber-700 font-medium">
+                          Role: <span className="capitalize">{inv.role}</span> • Unregistered recipient
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleCopySpecificInvite(inv.invite_url || "", inv.id)}
+                          className="px-2.5 py-1 text-xs font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 rounded flex items-center gap-1"
+                          title="Copy personalized invite link"
+                        >
+                          {copiedInviteId === inv.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedInviteId === inv.id ? "Copied" : "Copy Link"}</span>
+                        </button>
+                        <button
+                          onClick={() => handleRevokeInvite(inv.id)}
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                          title="Revoke invitation"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="border-t border-slate-100" />
 
-          {/* Section 3: Active Collaborators List */}
+          {/* Section 4: Active Collaborators List */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" />
-                Collaborators ({collaborators.length})
+                Active Members ({collaborators.length})
               </label>
             </div>
 
-            {isLoadingCollabs ? (
+            {isLoading ? (
               <div className="py-4 text-center text-xs text-slate-400">
                 Loading collaborators...
               </div>
             ) : collaborators.length === 0 ? (
               <div className="py-4 text-center text-xs text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                No external collaborators invited yet.
+                No active collaborators yet.
               </div>
             ) : (
               <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
@@ -294,7 +397,7 @@ export function ShareModal({
                         {c.email || c.userId}
                       </p>
                       <p className="text-[10px] text-slate-400">
-                        {c.role === "owner" ? "Document Creator" : "Collaborator"}
+                        {c.role === "owner" ? "Document Creator" : "Active Member"}
                       </p>
                     </div>
 
@@ -317,7 +420,7 @@ export function ShareModal({
                             <option value="viewer">Viewer</option>
                           </select>
                           <button
-                            onClick={() => handleRevoke(c.userId)}
+                            onClick={() => handleRevokeCollaborator(c.userId)}
                             className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
                             title="Revoke access"
                           >

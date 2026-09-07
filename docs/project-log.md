@@ -77,6 +77,16 @@ A living record of the development timeline, key architectural decisions (ADRs),
 - **Decision:** For `viewer` roles, enforce read-only state at 3 levels: (1) disable editing in Tiptap (`editable: false`), (2) suppress auto-save and manual updates to Supabase, and (3) filter outgoing Yjs broadcast updates in `SupabaseYjsProvider` while continuing to receive and decrypt incoming collaborator edits.
 - **Status:** Accepted.
 
+### ADR-012: Zero-Knowledge Pending Invitations for Unregistered Users
+- **Context:** Inviting an unregistered user by email is problematic under E2EE because their public key does not yet exist in the `users` registry.
+- **Decision:** Generate an ephemeral 256-bit AES-GCM invite secret client-side, encrypt the Document Key with this secret, store the ciphertext in `document_invitations(invite_token, wrapped_dk, iv, role, email)`, and deliver the secret exclusively inside the URL hash fragment (`/documents/<id>?invite=<token>#inviteKey=<secret>`). When the invitee opens the link, their client unwraps the DK, auto-initializes their persistent ECDH keypair, claims their role, and transitions to permanent `document_keys` + `permissions` records without server knowledge.
+- **Status:** Accepted.
+
+### ADR-013: User Identity & Email Management
+- **Context:** Users need an accessible way to view their public key fingerprint, configure their collaborator email address, and register with Supabase without complex third-party auth requirements in local/demo deployments.
+- **Decision:** Provide a unified `UserProfileModal` accessible from dashboard and editor navigation bars. Updating the email re-registers the user's existing ECDH public key in Supabase `users` and updates local profile persistence seamlessly.
+- **Status:** Accepted.
+
 ---
 
 ## 3. Notable Issues Encountered & Resolutions

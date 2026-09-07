@@ -8,7 +8,9 @@ import { updateDocument, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { cryptoVault } from "@/lib/crypto/vault";
 import { RichTextEditor } from "./RichTextEditor";
 import { ShareModal } from "./ShareModal";
+import { UserProfileModal } from "../ui/UserProfileModal";
 import { StatusBadge } from "../ui/StatusBadge";
+import { redeemDocumentInvitation } from "@/lib/crypto/document-crypto";
 import {
   SupabaseYjsProvider,
   uint8ArrayToBase64,
@@ -28,6 +30,7 @@ import {
   Edit3,
   Crown,
   Share2,
+  User,
 } from "lucide-react";
 
 interface EditorContainerProps {
@@ -49,6 +52,8 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const [isSyncConnected, setIsSyncConnected] = useState(false);
   const [isEncrypted, setIsEncrypted] = useState(true);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<DocumentRole>(
     initialDocument.role || "editor"
   );
@@ -62,8 +67,31 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const isFirstRender = useRef(true);
   const isSupabase = isSupabaseConfigured();
 
-  // Resolve user role
+  // Load user profile & resolve role or redeem invite token
   useEffect(() => {
+    // 1. Check for invite redemption in URL
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const inviteToken = params.get("invite");
+      const hash = window.location.hash;
+      const inviteKeyMatch = hash.match(/(?:#|&)inviteKey=([^&]+)/);
+      const inviteKey = inviteKeyMatch ? decodeURIComponent(inviteKeyMatch[1]) : null;
+
+      if (inviteToken && inviteKey) {
+        redeemDocumentInvitation(inviteToken, inviteKey).then((res) => {
+          if (res.success && res.role) {
+            setUserRole(res.role);
+            // Clean URL query parameters seamlessly
+            window.history.replaceState({}, "", window.location.pathname);
+          }
+        });
+      }
+    }
+
+    cryptoVault.initializeUserSession().then((session) => {
+      setUserEmail(session.email);
+    });
+
     cryptoVault
       .fetchDocumentRole(initialDocument.id)
       .then((role) => {
@@ -398,6 +426,18 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
 
             <StatusBadge status={isEditable ? saveStatus : "saved"} />
 
+            {/* Profile / Identity Switcher */}
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors"
+              title="View your public key and edit your email identity"
+            >
+              <User className="w-3.5 h-3.5 text-slate-500" />
+              <span className="max-w-[120px] truncate hidden sm:inline">
+                {userEmail || "Identity"}
+              </span>
+            </button>
+
             <button
               onClick={() => setIsShareModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md shadow-sm transition-colors"
@@ -437,6 +477,13 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
         documentId={doc.id}
         documentTitle={title}
         currentUserRole={userRole}
+      />
+
+      {/* User Profile & Key Management Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onProfileUpdated={(newEmail) => setUserEmail(newEmail)}
       />
     </div>
   );

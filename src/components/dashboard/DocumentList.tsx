@@ -22,8 +22,11 @@ import {
   FileSpreadsheet,
   ShieldCheck,
   Share2,
+  User,
 } from "lucide-react";
 import { ShareModal } from "../editor/ShareModal";
+import { UserProfileModal } from "../ui/UserProfileModal";
+import { cryptoVault } from "@/lib/crypto/vault";
 
 export function DocumentList() {
   const router = useRouter();
@@ -31,6 +34,8 @@ export function DocumentList() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [selectedShareDoc, setSelectedShareDoc] = useState<Document | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const isSupabase = isSupabaseConfigured();
 
   const loadDocuments = async () => {
@@ -47,6 +52,12 @@ export function DocumentList() {
 
   useEffect(() => {
     loadDocuments();
+    cryptoVault
+      .initializeUserSession()
+      .then((session) => {
+        setUserEmail(session.email);
+      })
+      .catch((e) => console.warn("Failed to load user session:", e));
   }, []);
 
   const handleCreateNew = async (
@@ -131,6 +142,16 @@ export function DocumentList() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Profile / Identity Button */}
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors"
+              title="Manage your email identity & cryptographic keys"
+            >
+              <User className="w-3.5 h-3.5 text-slate-500" />
+              <span className="max-w-[140px] truncate">{userEmail || "Your Identity"}</span>
+            </button>
+
             {/* Supabase / Local storage status badge */}
             <div className="flex items-center gap-1.5 text-xs text-slate-600 px-3 py-1.5 bg-slate-100 rounded-md border border-slate-200">
               {isSupabase ? (
@@ -294,6 +315,13 @@ export function DocumentList() {
         documentId={selectedShareDoc?.id || ""}
         documentTitle={selectedShareDoc?.title || ""}
         currentUserRole={selectedShareDoc?.role || "owner"}
+      />
+
+      {/* User Identity / Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onProfileUpdated={(newEmail) => setUserEmail(newEmail)}
       />
     </div>
   );

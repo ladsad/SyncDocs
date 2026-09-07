@@ -19,6 +19,17 @@ export interface DocumentCollaborator {
   joinedAt?: string;
 }
 
+export interface DocumentInvitation {
+  id: string;
+  document_id: string;
+  email: string;
+  role: DocumentRole;
+  invite_token: string;
+  invite_url?: string;
+  expires_at?: string;
+  created_at: string;
+}
+
 export interface Document {
   id: string;
   owner_id?: string | null;

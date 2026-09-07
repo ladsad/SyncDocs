@@ -172,6 +172,36 @@ class CryptoVault {
   }
 
   /**
+   * Updates the user's email address and synchronizes with Supabase & local storage.
+   */
+  public async updateUserEmail(newEmail: string): Promise<void> {
+    const cleanEmail = newEmail.trim().toLowerCase();
+    if (!cleanEmail) throw new Error("Email cannot be empty");
+
+    this.userEmail = cleanEmail;
+
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(USER_PROFILE_STORAGE_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          parsed.email = cleanEmail;
+          localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(parsed));
+        } catch {}
+      }
+    }
+
+    if (supabase && this.userId && this.userPublicKeyBase64) {
+      await supabase.from("users").upsert({
+        id: this.userId,
+        email: cleanEmail,
+        public_key: this.userPublicKeyBase64,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
    * Unwraps the Document Key from the `document_keys` table using the user's private key.
    */
   public async unwrapUserDocumentKey(documentId: string): Promise<CryptoKey | null> {

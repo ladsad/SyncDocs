@@ -54,11 +54,27 @@ create table if not exists permissions (
   primary key (document_id, user_id)
 );
 
+-- 5. Document Invitations table (Pending invites for unregistered users)
+create table if not exists document_invitations (
+  id uuid primary key default gen_random_uuid(),
+  document_id uuid not null references documents(id) on delete cascade,
+  email text not null,
+  role document_role not null default 'editor',
+  wrapped_dk text not null,
+  iv text not null,
+  invite_token text not null unique,
+  invited_by uuid,
+  expires_at timestamptz not null default (now() + interval '7 days'),
+  created_at timestamptz not null default now()
+);
+
 -- Indexes
 create index if not exists idx_documents_updated_at on documents(updated_at desc);
 create index if not exists idx_document_keys_user_id on document_keys(user_id);
 create index if not exists idx_permissions_user_id on permissions(user_id);
 create index if not exists idx_permissions_doc_user on permissions(document_id, user_id);
+create index if not exists idx_doc_invites_doc_id on document_invitations(document_id);
+create index if not exists idx_doc_invites_token on document_invitations(invite_token);
 
 -- Auto-update updated_at timestamp trigger
 create or replace function update_updated_at_column()
@@ -80,6 +96,7 @@ alter table public.documents enable row level security;
 alter table public.users enable row level security;
 alter table public.document_keys enable row level security;
 alter table public.permissions enable row level security;
+alter table public.document_invitations enable row level security;
 
 -- Permissive access policy for development/fallback
 drop policy if exists "Allow all access to documents" on public.documents;
@@ -93,3 +110,6 @@ create policy "Allow all access to document_keys" on public.document_keys for al
 
 drop policy if exists "Allow all access to permissions" on public.permissions;
 create policy "Allow all access to permissions" on public.permissions for all using (true) with check (true);
+
+drop policy if exists "Allow all access to document_invitations" on public.document_invitations;
+create policy "Allow all access to document_invitations" on public.document_invitations for all using (true) with check (true);
