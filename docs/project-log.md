@@ -13,6 +13,7 @@ A living record of the development timeline, key architectural decisions (ADRs),
 | **2026-09-02** | **Phase 1: Real-Time Sync (No E2EE)** | Integrated Yjs CRDT with Tiptap via Supabase Realtime broadcast channels (`doc-room:<id>`). Implemented remote awareness for multi-cursor and selection synchronization. | Completed |
 | **2026-09-03** | **Phase 2: End-to-End Encryption (E2EE)** | Implemented client-side cryptographic engine using Web Crypto API (ECDH P-256 keypairs, PBKDF2 Master Key derivation, AES-256-GCM Document Keys). Integrated encrypted Yjs binary deltas/snapshots in `SupabaseYjsProvider` and ciphertext envelope storage in Supabase/Local storage. | Completed |
 | **2026-09-07** | **Phase 3: Sharing, Roles & Key Distribution** | Implemented `permissions` table (`owner`/`editor`/`viewer`), ECDH P-256 asymmetric DK wrapping invite flow, persistent `CryptoVault` session identity, viewer write-suppression in editor & Yjs sync, and full-featured `ShareModal` UI. | Completed |
+| **2026-09-07** | **Production Readiness & Vercel Deployment** | Polished web metadata, dynamic document tab synchronization, SVG branding/favicon, live word/character counting, dashboard search, and configured Vercel deployment pipeline. | Completed |
 | *Upcoming* | **Phase 4: Multi-Style Editing Surfaces** | Markdown (CodeMirror + live preview), LaTeX (CodeMirror + Tier 1 WASM compiler / Tier 2 Local Agent). | Planned |
 
 ---
@@ -85,6 +86,11 @@ A living record of the development timeline, key architectural decisions (ADRs),
 ### ADR-013: User Identity & Email Management
 - **Context:** Users need an accessible way to view their public key fingerprint, configure their collaborator email address, and register with Supabase without complex third-party auth requirements in local/demo deployments.
 - **Decision:** Provide a unified `UserProfileModal` accessible from dashboard and editor navigation bars. Updating the email re-registers the user's existing ECDH public key in Supabase `users` and updates local profile persistence seamlessly.
+- **Status:** Accepted.
+
+### ADR-014: Zero-Knowledge Stateless Hosting on Vercel
+- **Context:** Deploying to serverless edge platforms (Vercel) requires ensuring no backend state leaks plaintext documents or cryptographic secrets.
+- **Decision:** The Next.js web application is built as a static/client-side single-page architecture utilizing public Supabase REST/Realtime endpoints (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`). No serverless API routes process or touch document content, maintaining strict compliance with the zero-knowledge model (ADR-001) under production deployment.
 - **Status:** Accepted.
 
 ---
