@@ -133,6 +133,9 @@ export async function shareDocumentWithEmail(
 }> {
   const normalizedEmail = email.trim().toLowerCase();
   const dk = await cryptoVault.getLocalFallbackDocumentKey(documentId);
+  if (!dk) {
+    return { success: false, error: "Encryption key not found or access denied for this document." };
+  }
 
   if (supabase) {
     // 1. Check if user exists in Supabase

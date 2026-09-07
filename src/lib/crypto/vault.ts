@@ -238,28 +238,101 @@ class CryptoVault {
   }
 
   /**
-   * Resolves the current user's role on the document (owner, editor, viewer).
+   * Generates and stores a new AES-256-GCM Document Key for a newly created document.
+   * Wraps the key for the creator if public key is available.
    */
-  public async fetchDocumentRole(documentId: string): Promise<DocumentRole> {
+  public async createAndStoreDocumentKey(
+    documentId: string,
+    userId?: string | null
+  ): Promise<CryptoKey> {
+    const dk = await generateDocumentKey();
+    this.setDocumentKey(documentId, dk);
+
+    const rawKey = await exportRawKey(dk);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`syncdocs_dk_${documentId}`, rawKey);
+    }
+
+    if (userId && this.userPublicKey && supabase) {
+      try {
+        const wrapped = await wrapDocumentKeyForUser(
+          dk,
+          this.userPublicKey,
+          documentId,
+          userId
+        );
+        await supabase.from("document_keys").upsert({
+          document_id: documentId,
+          user_id: userId,
+          wrapped_dk: wrapped.wrappedDk,
+          iv: wrapped.iv,
+          ephemeral_public_key: wrapped.ephemeralPublicKey,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn("Could not wrap document key for owner:", err);
+      }
+    }
+
+    return dk;
+  }
+
+  /**
+   * Resolves the current user's role on the document (owner, editor, viewer).
+   * Returns null if the user has no permissions and no document key.
+   */
+  public async fetchDocumentRole(documentId: string): Promise<DocumentRole | null> {
     if (!this.userId) {
       await this.initializeUserSession();
     }
 
     if (supabase && this.userId) {
-      const { data, error } = await supabase
+      // 1. Check permissions table
+      const { data: permData, error: permError } = await supabase
         .from("permissions")
         .select("role")
         .eq("document_id", documentId)
         .eq("user_id", this.userId)
-        .single();
+        .maybeSingle();
 
-      if (!error && data?.role) {
-        return data.role as DocumentRole;
+      if (!permError && permData?.role) {
+        return permData.role as DocumentRole;
+      }
+
+      // 2. Check if user is the document owner
+      const { data: docData } = await supabase
+        .from("documents")
+        .select("owner_id")
+        .eq("id", documentId)
+        .maybeSingle();
+
+      if (docData?.owner_id === this.userId) {
+        return "owner";
       }
     }
 
-    // Default to editor in single-user/local fallback mode
-    return "editor";
+    // 3. Check if user holds a valid key via URL hash or local storage
+    const hashKey = getKeyFromUrlHash();
+    const storageKey = `syncdocs_dk_${documentId}`;
+    const stored = typeof window !== "undefined" ? localStorage.getItem(storageKey) : null;
+    const memoryKey = this.getDocumentKey(documentId);
+
+    if (hashKey || stored || memoryKey) {
+      return "editor";
+    }
+
+    // 4. Try unwrap from document_keys
+    const unwrapped = await this.unwrapUserDocumentKey(documentId);
+    if (unwrapped) {
+      return "editor";
+    }
+
+    // If offline / single-user mode (no Supabase configured)
+    if (!supabase) {
+      return "owner";
+    }
+
+    return null;
   }
 
   /**
@@ -269,9 +342,12 @@ class CryptoVault {
    * 2. URL Hash parameter (#key=...)
    * 3. LocalStorage
    * 4. Asymmetric unwrap (if wrapped record present in document_keys)
-   * 5. Deterministic room key derivation (for seamless multi-tab collaboration)
+   * 5. If allowFallback is true and offline, falls back to deterministic room key
    */
-  public async getLocalFallbackDocumentKey(documentId: string): Promise<CryptoKey> {
+  public async getLocalFallbackDocumentKey(
+    documentId: string,
+    allowDeterministicFallback = false
+  ): Promise<CryptoKey | null> {
     const cached = this.getDocumentKey(documentId);
     if (cached) return cached;
 
@@ -313,19 +389,24 @@ class CryptoVault {
       return unwrappedDk;
     }
 
-    // 4. Deterministic room key derivation ensures consistent keys across all tabs
-    const deterministicDk = await deriveDocumentKeyFromId(documentId);
-    const raw = await exportRawKey(deterministicDk);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(storageKey, raw);
+    // 4. Fallback only if explicitly requested (e.g. offline mock demo mode)
+    if (allowDeterministicFallback || !supabase) {
+      const deterministicDk = await deriveDocumentKeyFromId(documentId);
+      const raw = await exportRawKey(deterministicDk);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(storageKey, raw);
+      }
+      this.setDocumentKey(documentId, deterministicDk);
+      return deterministicDk;
     }
-    this.setDocumentKey(documentId, deterministicDk);
-    return deterministicDk;
+
+    return null;
   }
 
   public async getShareableUrl(documentId: string): Promise<string> {
     if (typeof window === "undefined") return "";
     const dk = await this.getLocalFallbackDocumentKey(documentId);
+    if (!dk) return `${window.location.origin}/documents/${documentId}`;
     const rawKey = await exportRawKey(dk);
     const origin = window.location.origin;
     return `${origin}/documents/${documentId}#key=${encodeURIComponent(rawKey)}`;
@@ -333,3 +414,4 @@ class CryptoVault {
 }
 
 export const cryptoVault = new CryptoVault();
+

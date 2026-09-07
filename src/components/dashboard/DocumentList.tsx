@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { ShareModal } from "../editor/ShareModal";
 import { UserProfileModal } from "../ui/UserProfileModal";
+import { OnboardingModal } from "../ui/OnboardingModal";
 import { cryptoVault } from "@/lib/crypto/vault";
 
 export function DocumentList() {
@@ -40,6 +41,7 @@ export function DocumentList() {
   const [copiedDocId, setCopiedDocId] = useState<string | null>(null);
   const [selectedShareDoc, setSelectedShareDoc] = useState<Document | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const isSupabase = isSupabaseConfigured();
 
@@ -56,13 +58,20 @@ export function DocumentList() {
   };
 
   useEffect(() => {
-    loadDocuments();
+    if (typeof window !== "undefined" && !localStorage.getItem("syncdocs_onboarded")) {
+      setIsOnboardingOpen(true);
+    }
+
     cryptoVault
       .initializeUserSession()
       .then((session) => {
         setUserEmail(session.email);
+        loadDocuments();
       })
-      .catch((e) => console.warn("Failed to load user session:", e));
+      .catch((e) => {
+        console.warn("Failed to load user session:", e);
+        loadDocuments();
+      });
   }, []);
 
   const handleCreateNew = async (
@@ -382,7 +391,20 @@ export function DocumentList() {
       <UserProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        onProfileUpdated={(newEmail) => setUserEmail(newEmail)}
+        onProfileUpdated={(newEmail) => {
+          setUserEmail(newEmail);
+          loadDocuments();
+        }}
+      />
+
+      {/* First-Time Onboarding Modal */}
+      <OnboardingModal
+        isOpen={isOnboardingOpen}
+        onComplete={(newEmail) => {
+          setIsOnboardingOpen(false);
+          setUserEmail(newEmail);
+          loadDocuments();
+        }}
       />
     </div>
   );

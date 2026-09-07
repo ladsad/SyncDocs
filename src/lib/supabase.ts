@@ -42,7 +42,61 @@ const saveLocalDocRows = (rows: StoredDocumentRow[]) => {
 export async function fetchDocuments(): Promise<Document[]> {
   let rows: StoredDocumentRow[] = [];
 
-  if (supabase) {
+  let currentUserId = cryptoVault.getUserId();
+  if (!currentUserId && typeof window !== "undefined") {
+    const session = await cryptoVault.initializeUserSession();
+    currentUserId = session.userId;
+  }
+
+  if (supabase && currentUserId) {
+    // 1. Fetch document IDs user has permissions for
+    const { data: perms } = await supabase
+      .from("permissions")
+      .select("document_id")
+      .eq("user_id", currentUserId);
+
+    // 2. Fetch document IDs where user has wrapped keys
+    const { data: keys } = await supabase
+      .from("document_keys")
+      .select("document_id")
+      .eq("user_id", currentUserId);
+
+    const docIds = new Set<string>();
+    perms?.forEach((p) => docIds.add(p.document_id));
+    keys?.forEach((k) => docIds.add(k.document_id));
+
+    // Also include any docs with keys saved in localStorage
+    if (typeof window !== "undefined") {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k?.startsWith("syncdocs_dk_")) {
+          docIds.add(k.replace("syncdocs_dk_", ""));
+        }
+      }
+    }
+
+    let query = supabase.from("documents").select("*").order("updated_at", { ascending: false });
+
+    if (docIds.size > 0) {
+      const idFilter = Array.from(docIds).map((id) => `id.eq.${id}`).join(",");
+      query = query.or(`owner_id.eq.${currentUserId},${idFilter}`);
+    } else {
+      query = query.eq("owner_id", currentUserId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.warn("Supabase filtered fetch failed, querying owned:", error.message);
+      const fallback = await supabase
+        .from("documents")
+        .select("*")
+        .eq("owner_id", currentUserId)
+        .order("updated_at", { ascending: false });
+      rows = fallback.data || [];
+    } else {
+      rows = data || [];
+    }
+  } else if (supabase) {
     const { data, error } = await supabase
       .from("documents")
       .select("*")
@@ -68,7 +122,7 @@ export async function fetchDocuments(): Promise<Document[]> {
       const decrypted = await decryptDocumentRow(row, dk);
       return {
         ...decrypted,
-        role,
+        role: role || (row.owner_id === currentUserId ? "owner" : "viewer"),
       };
     })
   );
@@ -108,7 +162,7 @@ export async function fetchDocumentById(id: string): Promise<Document | null> {
   const decrypted = await decryptDocumentRow(row, dk);
   return {
     ...decrypted,
-    role,
+    role: role || undefined,
   };
 }
 
@@ -137,7 +191,7 @@ export async function createDocument(
   }
 
   if (isEncrypted) {
-    const dk = await cryptoVault.getLocalFallbackDocumentKey(newId);
+    const dk = await cryptoVault.createAndStoreDocumentKey(newId, currentUserId);
     const encryptedData = await encryptDocumentPayload(
       { title, content: initialContent, yjs_state: null },
       dk
@@ -217,6 +271,10 @@ export async function updateDocument(
 
   if (isEncrypted) {
     const dk = await cryptoVault.getLocalFallbackDocumentKey(id);
+    if (!dk) {
+      console.error("Cannot update document without encryption key:", id);
+      return null;
+    }
     const encryptedData = await encryptDocumentPayload(
       {
         title: updates.title || "Untitled Document",

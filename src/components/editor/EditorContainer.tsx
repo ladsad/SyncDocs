@@ -31,7 +31,12 @@ import {
   Crown,
   Share2,
   User,
+  Lock,
+  ShieldAlert,
+  Loader2,
+  Key,
 } from "lucide-react";
+import { importRawDocumentKey } from "@/lib/crypto/keys";
 
 interface EditorContainerProps {
   initialDocument: Document;
@@ -57,6 +62,11 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const [userRole, setUserRole] = useState<DocumentRole>(
     initialDocument.role || "editor"
   );
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [directKeyInput, setDirectKeyInput] = useState("");
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
+
   const isEditable = userRole !== "viewer";
 
   const [currentUser] = useState(() => getRandomUserPresence());
@@ -67,9 +77,8 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const isFirstRender = useRef(true);
   const isSupabase = isSupabaseConfigured();
 
-  // Load user profile & resolve role or redeem invite token
-  useEffect(() => {
-    // 1. Check for invite redemption in URL
+  // Access validation and key resolution
+  const verifyAccess = useCallback(async () => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const inviteToken = params.get("invite");
@@ -78,27 +87,81 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
       const inviteKey = inviteKeyMatch ? decodeURIComponent(inviteKeyMatch[1]) : null;
 
       if (inviteToken && inviteKey) {
-        redeemDocumentInvitation(inviteToken, inviteKey).then((res) => {
+        try {
+          const res = await redeemDocumentInvitation(inviteToken, inviteKey);
           if (res.success && res.role) {
             setUserRole(res.role);
-            // Clean URL query parameters seamlessly
             window.history.replaceState({}, "", window.location.pathname);
           }
-        });
+        } catch (e) {
+          console.warn("Invite redemption failed:", e);
+        }
       }
     }
 
-    cryptoVault.initializeUserSession().then((session) => {
-      setUserEmail(session.email);
-    });
+    const session = await cryptoVault.initializeUserSession();
+    setUserEmail(session.email);
 
-    cryptoVault
-      .fetchDocumentRole(initialDocument.id)
-      .then((role) => {
-        setUserRole(role);
-      })
-      .catch((e) => console.warn("Failed to fetch user role:", e));
-  }, [initialDocument.id]);
+    const dk = await cryptoVault.getLocalFallbackDocumentKey(initialDocument.id);
+    const role = await cryptoVault.fetchDocumentRole(initialDocument.id);
+
+    if (initialDocument.is_encrypted) {
+      if (!dk && !role) {
+        setHasAccess(false);
+        return;
+      }
+    }
+
+    if (role) setUserRole(role);
+    setHasAccess(true);
+  }, [initialDocument.id, initialDocument.is_encrypted]);
+
+  useEffect(() => {
+    verifyAccess();
+  }, [verifyAccess]);
+
+  const handleUnlockWithKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUnlockError(null);
+    const input = directKeyInput.trim();
+    if (!input) return;
+
+    setUnlocking(true);
+    try {
+      let rawKey = input;
+      if (input.includes("#key=")) {
+        const match = input.match(/(?:#|&)key=([^&]+)/);
+        if (match) rawKey = decodeURIComponent(match[1]);
+      } else if (input.includes("invite=")) {
+        const inviteMatch = input.match(/[?&]invite=([^&#]+)/);
+        const inviteKeyMatch = input.match(/(?:#|&)inviteKey=([^&]+)/);
+        if (inviteMatch && inviteKeyMatch) {
+          const res = await redeemDocumentInvitation(
+            decodeURIComponent(inviteMatch[1]),
+            decodeURIComponent(inviteKeyMatch[1])
+          );
+          if (res.success) {
+            setHasAccess(true);
+            setUserRole(res.role || "editor");
+            setUnlocking(false);
+            return;
+          }
+        }
+      }
+
+      const dk = await importRawDocumentKey(rawKey);
+      cryptoVault.setDocumentKey(initialDocument.id, dk);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`syncdocs_dk_${initialDocument.id}`, rawKey);
+      }
+      setHasAccess(true);
+      setUserRole("editor");
+    } catch (err) {
+      setUnlockError("Invalid key format or unauthorized link.");
+    } finally {
+      setUnlocking(false);
+    }
+  };
 
   // Update browser tab title dynamically
   useEffect(() => {
@@ -114,6 +177,8 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
 
   // Initialize Yjs Document with stored binary state (if any), Document Key, and Supabase Provider
   useEffect(() => {
+    if (!hasAccess) return;
+
     let isCancelled = false;
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
@@ -183,7 +248,7 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
       ydoc.destroy();
       ydocRef.current = null;
     };
-  }, [initialDocument.id, initialDocument.yjs_state, currentUser, userRole]);
+  }, [hasAccess, initialDocument.id, initialDocument.yjs_state, currentUser, userRole]);
 
   const performSave = useCallback(
     async (newTitle: string, newContent: any) => {
@@ -305,6 +370,114 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
         );
     }
   };
+
+  if (hasAccess === null) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-3" />
+        <p className="text-slate-600 font-medium text-sm">Verifying document access & cryptographic keys...</p>
+      </div>
+    );
+  }
+
+  if (hasAccess === false) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        {/* Navigation Bar */}
+        <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800 hover:text-slate-900 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>SyncDocs</span>
+          </Link>
+
+          <button
+            onClick={() => setIsProfileModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors"
+            title="View or change your email identity"
+          >
+            <User className="w-3.5 h-3.5 text-slate-500" />
+            <span>{userEmail || "Identity"}</span>
+          </button>
+        </header>
+
+        {/* Restricted Notice */}
+        <main className="flex-1 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-slate-200 shadow-sm text-center space-y-6">
+            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-100 shadow-inner">
+              <Lock className="w-7 h-7 text-rose-600" />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-slate-900">
+                Document Access Restricted
+              </h2>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                This document is end-to-end encrypted. Your current identity{" "}
+                <strong className="text-slate-900 underline decoration-slate-300">
+                  {userEmail || "anonymous"}
+                </strong>{" "}
+                has not been granted access by the owner.
+              </p>
+            </div>
+
+            {/* Direct Key / Invite Unlock Input */}
+            <form onSubmit={handleUnlockWithKey} className="space-y-2 text-left pt-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Have a share link or secret key?
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={directKeyInput}
+                  onChange={(e) => setDirectKeyInput(e.target.value)}
+                  placeholder="Paste #key=... or invite URL"
+                  className="flex-1 text-xs bg-white border border-slate-200 px-3 py-2 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="submit"
+                  disabled={unlocking}
+                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors shrink-0 disabled:opacity-50"
+                >
+                  {unlocking ? "Unlocking..." : "Unlock"}
+                </button>
+              </div>
+              {unlockError && (
+                <p className="text-xs text-rose-600">{unlockError}</p>
+              )}
+            </form>
+
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                className="flex-1 py-2 px-3 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                Switch Identity
+              </button>
+              <Link
+                href="/"
+                className="flex-1 inline-flex items-center justify-center py-2 px-3 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-sm transition-colors"
+              >
+                Back to Documents
+              </Link>
+            </div>
+          </div>
+        </main>
+
+        <UserProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          onProfileUpdated={(newEmail) => {
+            setUserEmail(newEmail);
+            verifyAccess();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">

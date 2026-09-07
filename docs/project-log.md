@@ -93,6 +93,16 @@ A living record of the development timeline, key architectural decisions (ADRs),
 - **Decision:** The Next.js web application is built as a static/client-side single-page architecture utilizing public Supabase REST/Realtime endpoints (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`). No serverless API routes process or touch document content, maintaining strict compliance with the zero-knowledge model (ADR-001) under production deployment.
 - **Status:** Accepted.
 
+### ADR-015: Strict Cryptographic Access Control & Access Denied Gate
+- **Context:** Fallback deterministic room key derivation previously permitted uninvited visitors to compute Document Keys and decrypt documents without explicit permission or invite tokens.
+- **Decision:** Restrict Document Key resolution so that encrypted documents can only be decrypted if: (1) user is the creator with the local key, (2) user has an entry in `document_keys` and unwraps with their ECDH private key, (3) a `#key=...` direct key is provided, or (4) a valid `?invite=...#inviteKey=...` token is redeemed. Uninvited users receive an "Access Restricted" gate with zero access to the CRDT sync room.
+- **Status:** Accepted.
+
+### ADR-016: First-Time User Onboarding & Email Identity Prompt
+- **Context:** Collaborators must know the recipient's email address to look up their public key and wrap Document Keys. Relying on auto-generated fallback emails led to unrecognized placeholder identities.
+- **Decision:** Introduce a first-visit `OnboardingModal` that prompts new users to provide their email address. The client immediately initializes their ECDH keypair, stores their profile locally, marks onboarding as complete, and publishes their public key to Supabase `users`.
+- **Status:** Accepted.
+
 ---
 
 ## 3. Notable Issues Encountered & Resolutions
