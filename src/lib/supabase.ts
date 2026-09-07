@@ -57,14 +57,19 @@ export async function fetchDocuments(): Promise<Document[]> {
     rows = getLocalDocRows();
   }
 
-  // Decrypt rows if keys are available
+  // Decrypt rows if keys are available & resolve role
   const docs: Document[] = await Promise.all(
     rows.map(async (row) => {
       let dk = cryptoVault.getDocumentKey(row.id);
       if (!dk && row.is_encrypted) {
         dk = await cryptoVault.getLocalFallbackDocumentKey(row.id).catch(() => null);
       }
-      return await decryptDocumentRow(row, dk);
+      const role = await cryptoVault.fetchDocumentRole(row.id);
+      const decrypted = await decryptDocumentRow(row, dk);
+      return {
+        ...decrypted,
+        role,
+      };
     })
   );
 
@@ -99,7 +104,12 @@ export async function fetchDocumentById(id: string): Promise<Document | null> {
     dk = await cryptoVault.getLocalFallbackDocumentKey(id).catch(() => null);
   }
 
-  return await decryptDocumentRow(row, dk);
+  const role = await cryptoVault.fetchDocumentRole(id);
+  const decrypted = await decryptDocumentRow(row, dk);
+  return {
+    ...decrypted,
+    role,
+  };
 }
 
 export async function createDocument(
@@ -119,6 +129,13 @@ export async function createDocument(
   const newId = crypto.randomUUID();
   let insertPayload: any;
 
+  // Ensure user session identity
+  let currentUserId = cryptoVault.getUserId();
+  if (!currentUserId && typeof window !== "undefined") {
+    const session = await cryptoVault.initializeUserSession();
+    currentUserId = session.userId;
+  }
+
   if (isEncrypted) {
     const dk = await cryptoVault.getLocalFallbackDocumentKey(newId);
     const encryptedData = await encryptDocumentPayload(
@@ -127,12 +144,14 @@ export async function createDocument(
     );
     insertPayload = {
       id: newId,
+      owner_id: currentUserId || null,
       content_type: contentType,
       ...encryptedData,
     };
   } else {
     insertPayload = {
       id: newId,
+      owner_id: currentUserId || null,
       title,
       content_type: contentType,
       content: initialContent,
@@ -152,8 +171,22 @@ export async function createDocument(
       throw error;
     }
 
+    // Set owner permission
+    if (currentUserId) {
+      await supabase.from("permissions").upsert({
+        document_id: newId,
+        user_id: currentUserId,
+        role: "owner",
+        updated_at: new Date().toISOString(),
+      });
+    }
+
     const dk = cryptoVault.getDocumentKey(newId);
-    return await decryptDocumentRow(data, dk);
+    const decrypted = await decryptDocumentRow(data, dk);
+    return {
+      ...decrypted,
+      role: "owner",
+    };
   }
 
   const now = new Date().toISOString();
@@ -168,7 +201,11 @@ export async function createDocument(
   saveLocalDocRows(rows);
 
   const dk = cryptoVault.getDocumentKey(newId);
-  return await decryptDocumentRow(storedRow, dk);
+  const decrypted = await decryptDocumentRow(storedRow, dk);
+  return {
+    ...decrypted,
+    role: "owner",
+  };
 }
 
 export async function updateDocument(

@@ -42,18 +42,21 @@ export class SupabaseYjsProvider {
     updated: number[];
     removed: number[];
   }) => void;
+  public isReadOnly: boolean = false;
   private statusListeners: Array<(status: { connected: boolean }) => void> = [];
 
   constructor(
     supabase: SupabaseClient | null,
     documentId: string,
     doc: Y.Doc = new Y.Doc(),
-    documentKey: CryptoKey | null = null
+    documentKey: CryptoKey | null = null,
+    isReadOnly: boolean = false
   ) {
     this.supabase = supabase;
     this.documentId = documentId;
     this.doc = doc;
     this.documentKey = documentKey;
+    this.isReadOnly = isReadOnly;
     this.awareness = new awarenessProtocol.Awareness(this.doc);
 
     this.onDocUpdateBound = this.handleLocalDocUpdate.bind(this);
@@ -63,6 +66,10 @@ export class SupabaseYjsProvider {
     this.awareness.on("update", this.onAwarenessUpdateBound);
 
     this.connect();
+  }
+
+  public setReadOnly(readOnly: boolean) {
+    this.isReadOnly = readOnly;
   }
 
   public setDocumentKey(key: CryptoKey | null) {
@@ -254,7 +261,7 @@ export class SupabaseYjsProvider {
   }
 
   private async handleLocalDocUpdate(update: Uint8Array, origin: any) {
-    if (origin === this) return; // Do not echo back remote updates
+    if (origin === this || this.isReadOnly) return; // Do not echo remote updates or emit if read-only
 
     if (this.channel && this.isConnected) {
       if (this.documentKey) {

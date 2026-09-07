@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import * as Y from "yjs";
-import { Document, SaveStatus } from "@/types/document";
+import { Document, DocumentRole, SaveStatus } from "@/types/document";
 import { updateDocument, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { cryptoVault } from "@/lib/crypto/vault";
 import { RichTextEditor } from "./RichTextEditor";
@@ -23,6 +23,9 @@ import {
   Wifi,
   WifiOff,
   ShieldCheck,
+  Eye,
+  Edit3,
+  Crown,
 } from "lucide-react";
 
 interface EditorContainerProps {
@@ -43,6 +46,10 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const [collaborators, setCollaborators] = useState<CollaboratorInfo[]>([]);
   const [isSyncConnected, setIsSyncConnected] = useState(false);
   const [isEncrypted, setIsEncrypted] = useState(true);
+  const [userRole, setUserRole] = useState<DocumentRole>(
+    initialDocument.role || "editor"
+  );
+  const isEditable = userRole !== "viewer";
 
   const [currentUser] = useState(() => getRandomUserPresence());
   const [provider, setProvider] = useState<SupabaseYjsProvider | null>(null);
@@ -51,6 +58,16 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstRender = useRef(true);
   const isSupabase = isSupabaseConfigured();
+
+  // Resolve user role
+  useEffect(() => {
+    cryptoVault
+      .fetchDocumentRole(initialDocument.id)
+      .then((role) => {
+        setUserRole(role);
+      })
+      .catch((e) => console.warn("Failed to fetch user role:", e));
+  }, [initialDocument.id]);
 
   // Initialize Yjs Document with stored binary state (if any), Document Key, and Supabase Provider
   useEffect(() => {
@@ -68,7 +85,14 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
       }
     }
 
-    const yProvider = new SupabaseYjsProvider(supabase, initialDocument.id, ydoc);
+    const isReadOnly = userRole === "viewer";
+    const yProvider = new SupabaseYjsProvider(
+      supabase,
+      initialDocument.id,
+      ydoc,
+      null,
+      isReadOnly
+    );
     setProvider(yProvider);
 
     // Setup E2EE Document Key
@@ -116,10 +140,11 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
       ydoc.destroy();
       ydocRef.current = null;
     };
-  }, [initialDocument.id, initialDocument.yjs_state, currentUser]);
+  }, [initialDocument.id, initialDocument.yjs_state, currentUser, userRole]);
 
   const performSave = useCallback(
     async (newTitle: string, newContent: any) => {
+      if (!isEditable) return; // Disallow write operations for viewers
       setSaveStatus("saving");
       try {
         const ydoc = ydocRef.current;
@@ -147,7 +172,7 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
         setSaveStatus("error");
       }
     },
-    [doc.id, isEncrypted]
+    [doc.id, isEncrypted, isEditable]
   );
 
   // Trigger auto-save debounce on title or content change
@@ -156,6 +181,8 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
       isFirstRender.current = false;
       return;
     }
+
+    if (!isEditable) return; // Viewers do not auto-save
 
     setSaveStatus("unsaved");
 
@@ -172,13 +199,14 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [title, content, performSave]);
+  }, [title, content, performSave, isEditable]);
 
   // Keyboard shortcut Ctrl+S / Cmd+S
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
+        if (!isEditable) return;
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current);
         }
@@ -187,9 +215,10 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [title, content, performSave]);
+  }, [title, content, performSave, isEditable]);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isEditable) return;
     setTitle(e.target.value);
   };
 
@@ -198,6 +227,7 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   };
 
   const handleManualSave = () => {
+    if (!isEditable) return;
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
@@ -215,6 +245,7 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
             onChange={handleContentChange}
             provider={provider}
             userPresence={currentUser}
+            editable={isEditable}
           />
         );
       case "markdown":
@@ -249,13 +280,47 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
             <input
               type="text"
               value={title}
+              readOnly={!isEditable}
               onChange={handleTitleChange}
               placeholder="Untitled Document"
-              className="font-semibold text-lg text-slate-900 bg-transparent border border-transparent hover:border-slate-200 focus:border-blue-500 focus:bg-white px-2 py-0.5 rounded-md focus:outline-none w-full max-w-md transition-colors"
+              className={`font-semibold text-lg text-slate-900 bg-transparent border border-transparent px-2 py-0.5 rounded-md focus:outline-none w-full max-w-md transition-colors ${
+                isEditable
+                  ? "hover:border-slate-200 focus:border-blue-500 focus:bg-white"
+                  : "cursor-default text-slate-700"
+              }`}
             />
           </div>
 
           <div className="flex items-center gap-3">
+            {/* User Role Badge */}
+            {userRole === "owner" && (
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 border border-purple-200 text-purple-800 rounded-lg text-xs font-medium"
+                title="You are the Owner of this document"
+              >
+                <Crown className="w-3.5 h-3.5 text-purple-600" />
+                <span>Owner</span>
+              </div>
+            )}
+            {userRole === "editor" && (
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-xs font-medium"
+                title="You are an Editor on this document"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                <span>Editor</span>
+              </div>
+            )}
+            {userRole === "viewer" && (
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-medium"
+                title="You have Read-Only (Viewer) access"
+              >
+                <Eye className="w-3.5 h-3.5 text-amber-600" />
+                <span>Viewer</span>
+              </div>
+            )}
+
             {/* E2EE Security Badge */}
             {isEncrypted && (
               <div
@@ -328,16 +393,22 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
               )}
             </div>
 
-            <StatusBadge status={saveStatus} />
+            <StatusBadge status={isEditable ? saveStatus : "saved"} />
 
-            <button
-              onClick={handleManualSave}
-              disabled={saveStatus === "saving"}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md shadow-sm transition-colors disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              <span className="hidden sm:inline">Save</span>
-            </button>
+            {isEditable ? (
+              <button
+                onClick={handleManualSave}
+                disabled={saveStatus === "saving"}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md shadow-sm transition-colors disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                <span className="hidden sm:inline">Save</span>
+              </button>
+            ) : (
+              <span className="px-2.5 py-1 text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 rounded-md">
+                Read Only
+              </span>
+            )}
           </div>
         </div>
       </header>

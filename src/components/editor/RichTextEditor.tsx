@@ -76,6 +76,12 @@ export function RichTextEditor({
     [extensions]
   );
 
+  React.useEffect(() => {
+    if (editor && editor.isEditable !== editable) {
+      editor.setEditable(editable);
+    }
+  }, [editor, editable]);
+
   if (!editor) {
     return (
       <div className="p-8 text-center text-slate-400">Loading editor...</div>

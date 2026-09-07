@@ -24,6 +24,15 @@ interface EditorToolbarProps {
 export function EditorToolbar({ editor }: EditorToolbarProps) {
   if (!editor) return null;
 
+  if (!editor.isEditable) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200 text-xs text-slate-500 font-medium">
+        <span className="w-2 h-2 rounded-full bg-slate-400" />
+        <span>View-only mode — editing and formatting toolbar are disabled for your role.</span>
+      </div>
+    );
+  }
+
   const btnClass = (isActive: boolean) =>
     `p-1.5 rounded transition-colors text-sm flex items-center justify-center ${
       isActive
