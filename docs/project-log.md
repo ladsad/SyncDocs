@@ -12,7 +12,7 @@ A living record of the development timeline, key architectural decisions (ADRs),
 | **2026-09-02** | **Phase 0: Scaffold & Single-User Editor** | Built Next.js (App Router) + TypeScript + Tailwind scaffold. Implemented Tiptap WYSIWYG Rich Text editor with full formatting toolbar, debounced auto-save, document list dashboard, and Supabase Postgres schema (`supabase/schema.sql`) with local fallback. | Completed |
 | **2026-09-02** | **Phase 1: Real-Time Sync (No E2EE)** | Integrated Yjs CRDT with Tiptap via Supabase Realtime broadcast channels (`doc-room:<id>`). Implemented remote awareness for multi-cursor and selection synchronization. | Completed |
 | **2026-09-03** | **Phase 2: End-to-End Encryption (E2EE)** | Implemented client-side cryptographic engine using Web Crypto API (ECDH P-256 keypairs, PBKDF2 Master Key derivation, AES-256-GCM Document Keys). Integrated encrypted Yjs binary deltas/snapshots in `SupabaseYjsProvider` and ciphertext envelope storage in Supabase/Local storage. | Completed |
-| *Upcoming* | **Phase 3: Sharing & Roles** | Invite flows, permission model (owner/editor/viewer), wrapped DK distribution. | Planned |
+| **2026-09-07** | **Phase 3: Sharing, Roles & Key Distribution** | Implemented `permissions` table (`owner`/`editor`/`viewer`), ECDH P-256 asymmetric DK wrapping invite flow, persistent `CryptoVault` session identity, and viewer write-suppression in editor & Yjs sync. | In Progress |
 | *Upcoming* | **Phase 4: Multi-Style Editing Surfaces** | Markdown (CodeMirror + live preview), LaTeX (CodeMirror + Tier 1 WASM compiler / Tier 2 Local Agent). | Planned |
 
 ---
@@ -65,6 +65,16 @@ A living record of the development timeline, key architectural decisions (ADRs),
 ### ADR-009: Oblivious Encrypted Wire Protocol in Realtime Broadcast
 - **Context:** Realtime broadcast events must carry encrypted Yjs diffs without leaking document structure or data to the Supabase infrastructure.
 - **Decision:** Encapsulate Yjs updates in `{ ciphertext, iv }` envelopes on `doc-update` and `sync-step-2` channels. Clients decrypt binary updates prior to merging into their local `Y.Doc`.
+- **Status:** Accepted.
+
+### ADR-010: Zero-Knowledge Key Wrapping for Collaborative Sharing
+- **Context:** Inviting collaborators to an encrypted document requires securely distributing the AES-256-GCM Document Key without exposing it to the server.
+- **Decision:** Implement ECDH P-256 key wrapping (`wrapDocumentKeyForUser` / `unwrapDocumentKey`). Inviters encrypt the Document Key with the invitee's public key using an ephemeral ECDH keypair and store the wrapped record in `document_keys`. Invitees decrypt it locally using their private key upon loading the document.
+- **Status:** Accepted.
+
+### ADR-011: Multi-Tiered Client-Side Role Enforcement
+- **Context:** Role-based access control (`owner`, `editor`, `viewer`) must be enforced on both the database level (RLS) and client real-time synchronization layer.
+- **Decision:** For `viewer` roles, enforce read-only state at 3 levels: (1) disable editing in Tiptap (`editable: false`), (2) suppress auto-save and manual updates to Supabase, and (3) filter outgoing Yjs broadcast updates in `SupabaseYjsProvider` while continuing to receive and decrypt incoming collaborator edits.
 - **Status:** Accepted.
 
 ---
