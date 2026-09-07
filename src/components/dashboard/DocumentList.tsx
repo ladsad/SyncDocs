@@ -21,13 +21,16 @@ import {
   FileCode,
   FileSpreadsheet,
   ShieldCheck,
+  Share2,
 } from "lucide-react";
+import { ShareModal } from "../editor/ShareModal";
 
 export function DocumentList() {
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [selectedShareDoc, setSelectedShareDoc] = useState<Document | null>(null);
   const isSupabase = isSupabaseConfigured();
 
   const loadDocuments = async () => {
@@ -230,13 +233,26 @@ export function DocumentList() {
                     <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
                       {getStyleIcon(doc.content_type)}
                     </div>
-                    <button
-                      onClick={(e) => handleDelete(doc.id, e)}
-                      title="Delete document"
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedShareDoc(doc);
+                        }}
+                        title="Share document"
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(doc.id, e)}
+                        title="Delete document"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                   <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1 mb-1">
                     {doc.title || "Untitled Document"}
@@ -245,6 +261,11 @@ export function DocumentList() {
                     <span className="inline-block text-[11px] font-medium uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                       {doc.content_type.replace("_", " ")}
                     </span>
+                    {doc.role && (
+                      <span className="inline-block text-[11px] font-medium capitalize text-blue-700 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded">
+                        {doc.role}
+                      </span>
+                    )}
                     {doc.is_encrypted && (
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded">
                         <ShieldCheck className="w-3 h-3 text-emerald-600" />
@@ -265,6 +286,15 @@ export function DocumentList() {
           </div>
         )}
       </main>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={Boolean(selectedShareDoc)}
+        onClose={() => setSelectedShareDoc(null)}
+        documentId={selectedShareDoc?.id || ""}
+        documentTitle={selectedShareDoc?.title || ""}
+        currentUserRole={selectedShareDoc?.role || "owner"}
+      />
     </div>
   );
 }

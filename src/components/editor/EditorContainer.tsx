@@ -7,6 +7,7 @@ import { Document, DocumentRole, SaveStatus } from "@/types/document";
 import { updateDocument, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { cryptoVault } from "@/lib/crypto/vault";
 import { RichTextEditor } from "./RichTextEditor";
+import { ShareModal } from "./ShareModal";
 import { StatusBadge } from "../ui/StatusBadge";
 import {
   SupabaseYjsProvider,
@@ -26,6 +27,7 @@ import {
   Eye,
   Edit3,
   Crown,
+  Share2,
 } from "lucide-react";
 
 interface EditorContainerProps {
@@ -46,6 +48,7 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const [collaborators, setCollaborators] = useState<CollaboratorInfo[]>([]);
   const [isSyncConnected, setIsSyncConnected] = useState(false);
   const [isEncrypted, setIsEncrypted] = useState(true);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [userRole, setUserRole] = useState<DocumentRole>(
     initialDocument.role || "editor"
   );
@@ -395,6 +398,15 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
 
             <StatusBadge status={isEditable ? saveStatus : "saved"} />
 
+            <button
+              onClick={() => setIsShareModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md shadow-sm transition-colors"
+              title="Share document & manage collaborator permissions"
+            >
+              <Share2 className="w-3.5 h-3.5 text-blue-600" />
+              <span>Share</span>
+            </button>
+
             {isEditable ? (
               <button
                 onClick={handleManualSave}
@@ -417,6 +429,15 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6">
         {renderEditorSurface()}
       </main>
+
+      {/* Share & Permissions Modal */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        documentId={doc.id}
+        documentTitle={title}
+        currentUserRole={userRole}
+      />
     </div>
   );
 }
