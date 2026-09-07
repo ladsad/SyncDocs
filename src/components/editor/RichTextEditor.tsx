@@ -88,10 +88,34 @@ export function RichTextEditor({
     );
   }
 
+  const text = editor.getText();
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const charCount = text.length;
+
   return (
     <div className="border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden flex flex-col">
       <EditorToolbar editor={editor} />
       <EditorContent editor={editor} />
+      <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span>
+            {wordCount} {wordCount === 1 ? "word" : "words"}
+          </span>
+          <span className="text-slate-300">•</span>
+          <span>
+            {charCount} {charCount === 1 ? "character" : "characters"}
+          </span>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 text-slate-400">
+          <span>
+            Press{" "}
+            <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[11px] font-mono text-slate-600 shadow-2xs">
+              Ctrl+S
+            </kbd>{" "}
+            to save immediately
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

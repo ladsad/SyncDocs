@@ -23,6 +23,9 @@ import {
   ShieldCheck,
   Share2,
   User,
+  Search,
+  Copy,
+  Check,
 } from "lucide-react";
 import { ShareModal } from "../editor/ShareModal";
 import { UserProfileModal } from "../ui/UserProfileModal";
@@ -33,6 +36,8 @@ export function DocumentList() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [copiedDocId, setCopiedDocId] = useState<string | null>(null);
   const [selectedShareDoc, setSelectedShareDoc] = useState<Document | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -122,11 +127,28 @@ export function DocumentList() {
     }
   };
 
+  const handleCopyLink = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof window !== "undefined") {
+      const url = `${window.location.origin}/documents/${id}`;
+      navigator.clipboard.writeText(url);
+      setCopiedDocId(id);
+      setTimeout(() => setCopiedDocId(null), 2000);
+    }
+  };
+
+  const filteredDocs = documents.filter((d) =>
+    (d.title || "Untitled Document")
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase().trim())
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top Header */}
       <header className="border-b border-slate-200 bg-white sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
               S
@@ -136,7 +158,7 @@ export function DocumentList() {
                 SyncDocs
               </h1>
               <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                Phase 2 — End-to-End Encrypted CRDT Editor
+                End-to-End Encrypted Collaborative Docs
               </p>
             </div>
           </div>
@@ -153,7 +175,7 @@ export function DocumentList() {
             </button>
 
             {/* Supabase / Local storage status badge */}
-            <div className="flex items-center gap-1.5 text-xs text-slate-600 px-3 py-1.5 bg-slate-100 rounded-md border border-slate-200">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-600 px-3 py-1.5 bg-slate-100 rounded-md border border-slate-200">
               {isSupabase ? (
                 <>
                   <Database className="w-3.5 h-3.5 text-emerald-600" />
@@ -162,7 +184,7 @@ export function DocumentList() {
               ) : (
                 <>
                   <HardDrive className="w-3.5 h-3.5 text-amber-600" />
-                  <span className="font-medium">Local Mode (No Supabase Env)</span>
+                  <span className="font-medium">Local Mode</span>
                 </>
               )}
             </div>
@@ -173,7 +195,7 @@ export function DocumentList() {
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-colors disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
-              <span>New Encrypted Document</span>
+              <span>New Document</span>
             </button>
           </div>
         </div>
@@ -205,11 +227,27 @@ export function DocumentList() {
           </div>
         )}
 
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-slate-900">All Documents</h2>
-          <span className="text-xs text-slate-500">
-            {documents.length} {documents.length === 1 ? "document" : "documents"}
-          </span>
+        {/* Toolbar & Search */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-900">All Documents</h2>
+            <span className="text-xs bg-slate-100 text-slate-600 font-medium px-2 py-0.5 rounded-full">
+              {filteredDocs.length} {filteredDocs.length === 1 ? "document" : "documents"}
+            </span>
+          </div>
+
+          {documents.length > 0 && (
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search documents..."
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors text-slate-800"
+              />
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -230,7 +268,7 @@ export function DocumentList() {
               No documents yet
             </h3>
             <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">
-              Create your first encrypted rich text document to start writing.
+              Create your first end-to-end encrypted document to start writing privately.
             </p>
             <button
               onClick={() => handleCreateNew("rich_text")}
@@ -241,9 +279,21 @@ export function DocumentList() {
               <span>Create Encrypted Document</span>
             </button>
           </div>
+        ) : filteredDocs.length === 0 ? (
+          <div className="border border-slate-200 rounded-xl p-8 text-center bg-white">
+            <p className="text-sm text-slate-500 mb-2">
+              No documents matching &quot;{searchQuery}&quot;
+            </p>
+            <button
+              onClick={() => setSearchQuery("")}
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Clear search filter
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {documents.map((doc) => (
+            {filteredDocs.map((doc) => (
               <Link
                 key={doc.id}
                 href={`/documents/${doc.id}`}
@@ -256,12 +306,23 @@ export function DocumentList() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button
+                        onClick={(e) => handleCopyLink(doc.id, e)}
+                        title={copiedDocId === doc.id ? "Link copied!" : "Copy document link"}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      >
+                        {copiedDocId === doc.id ? (
+                          <Check className="w-4 h-4 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           setSelectedShareDoc(doc);
                         }}
-                        title="Share document"
+                        title="Share document & permissions"
                         className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                       >
                         <Share2 className="w-4 h-4" />

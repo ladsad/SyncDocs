@@ -100,6 +100,18 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
       .catch((e) => console.warn("Failed to fetch user role:", e));
   }, [initialDocument.id]);
 
+  // Update browser tab title dynamically
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.title = `${title || "Untitled Document"} — SyncDocs`;
+    }
+    return () => {
+      if (typeof document !== "undefined") {
+        document.title = "SyncDocs — End-to-End Encrypted Collaborative Docs";
+      }
+    };
+  }, [title]);
+
   // Initialize Yjs Document with stored binary state (if any), Document Key, and Supabase Provider
   useEffect(() => {
     let isCancelled = false;

@@ -2,8 +2,16 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SyncDocs — Phase 0 Editor",
-  description: "Collaborative, format-agnostic document editor",
+  title: {
+    default: "SyncDocs — End-to-End Encrypted Collaborative Docs",
+    template: "%s | SyncDocs",
+  },
+  description:
+    "Real-time collaborative document editor with client-side end-to-end encryption (E2EE) and CRDT synchronization.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
