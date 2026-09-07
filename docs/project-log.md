@@ -14,6 +14,7 @@ A living record of the development timeline, key architectural decisions (ADRs),
 | **2026-09-03** | **Phase 2: End-to-End Encryption (E2EE)** | Implemented client-side cryptographic engine using Web Crypto API (ECDH P-256 keypairs, PBKDF2 Master Key derivation, AES-256-GCM Document Keys). Integrated encrypted Yjs binary deltas/snapshots in `SupabaseYjsProvider` and ciphertext envelope storage in Supabase/Local storage. | Completed |
 | **2026-09-07** | **Phase 3: Sharing, Roles & Key Distribution** | Implemented `permissions` table (`owner`/`editor`/`viewer`), ECDH P-256 asymmetric DK wrapping invite flow, persistent `CryptoVault` session identity, viewer write-suppression in editor & Yjs sync, and full-featured `ShareModal` UI. | Completed |
 | **2026-09-07** | **Production Readiness & Vercel Deployment** | Polished web metadata, dynamic document tab synchronization, SVG branding/favicon, live word/character counting, dashboard search, and configured Vercel deployment pipeline. | Completed |
+| **2026-09-07** | **First-Time Onboarding & Strict Access Control** | Added `OnboardingModal` for automatic browser keypair/email setup, removed unauthenticated deterministic key fallbacks, implemented strict access restriction gates in `EditorContainer`, and fixed PostgREST query filtering with incoming invite dashboard alerts. | Completed |
 | *Upcoming* | **Phase 4: Multi-Style Editing Surfaces** | Markdown (CodeMirror + live preview), LaTeX (CodeMirror + Tier 1 WASM compiler / Tier 2 Local Agent). | Planned |
 
 ---
@@ -131,6 +132,16 @@ A living record of the development timeline, key architectural decisions (ADRs),
 - **Root Cause:** Joining tabs lacked the ephemeral Document Key from the creator's session and fell back to generating an incompatible random key, causing AES-GCM authentication tag verification failure.
 - **Resolution:** Implemented multi-tiered Document Key resolution in `CryptoVault` (URL hash `#key=...` -> `localStorage` -> deterministic room key derivation via `deriveDocumentKeyFromId`), guaranteeing key parity across multi-tab sessions and reloads.
 
+### Issue 6: PostgREST Syntax Error in Shared Documents Fetch Filter
+- **Symptom:** Collaborator documents failed to appear on the dashboard under "All Documents" and fell back to querying only user-owned documents.
+- **Root Cause:** The PostgREST `.or()` filter concatenated multiple `id.eq.<id>` predicates without the required `id.in.(<id1>,<id2>)` syntax, causing query parse errors on multi-document sets.
+- **Resolution:** Updated `fetchDocuments` in `src/lib/supabase.ts` to format multi-ID queries with `id.in.(<idList>)`, restoring immediate visibility for all shared documents.
+
+### Issue 7: Unregistered Invitee Discovery Under Zero-Knowledge Privacy
+- **Symptom:** Unregistered users invited prior to visiting SyncDocs had no direct public key in `users`, preventing automatic wrapped key storage.
+- **Root Cause:** Zero-knowledge servers cannot hold unwrap keys or send automated plaintext emails.
+- **Resolution:** Implemented one-time encrypted invite links (`/documents/<id>?invite=<token>#inviteKey=<key>`) copied via `ShareModal.tsx`, and added a real-time incoming invitations notification banner in `DocumentList.tsx` enabling invitees to paste their link and redeem access directly from the dashboard.
+
 ---
 
 ## 4. Maintenance Guidelines
@@ -140,3 +151,4 @@ Whenever a new phase is started/completed or an architectural decision is made:
 2. Record any design choices or trade-offs in the **ADRs** section.
 3. Record significant bugs and fixes in the **Notable Issues Encountered** section.
 4. Keep `docs/architecture.md` and `docs/project-description.md` synchronized.
+
