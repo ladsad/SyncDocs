@@ -207,17 +207,20 @@ export function DocumentList() {
     }
   };
 
-  const getStyleIcon = (type: DocumentContentType) => {
+  const getStyleIcon = (
+    type: DocumentContentType,
+    className: string = "w-3 h-3 text-ink-secondary"
+  ) => {
     switch (type) {
       case "rich_text":
-        return <FileText className="w-4 h-4 text-ink" />;
+        return <FileText className={className} />;
       case "markdown":
-        return <FileCode className="w-4 h-4 text-ink" />;
+        return <FileCode className={className} />;
       case "latex":
       case "typst":
-        return <FileSpreadsheet className="w-4 h-4 text-ink" />;
+        return <FileSpreadsheet className={className} />;
       default:
-        return <FileText className="w-4 h-4 text-ink" />;
+        return <FileText className={className} />;
     }
   };
 
@@ -515,8 +518,9 @@ export function DocumentList() {
                       <span className="font-mono text-[10px] text-ink-muted">
                         {(idx + 1).toString().padStart(2, "0")}
                       </span>
-                      <span className="font-mono text-[10px] font-semibold tracking-wider text-ink-secondary bg-canvas-subtle border border-border px-1.5 py-0.5 rounded-xs">
-                        {getContentTypeLabel(doc.content_type)}
+                      <span className="font-mono text-[10px] font-semibold tracking-wider text-ink-secondary bg-canvas-subtle border border-border px-1.5 py-0.5 rounded-xs inline-flex items-center gap-1">
+                        {getStyleIcon(doc.content_type, "w-3 h-3 text-ink-secondary")}
+                        <span>{getContentTypeLabel(doc.content_type)}</span>
                       </span>
                     </div>
 

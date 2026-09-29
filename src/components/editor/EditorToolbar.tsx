@@ -41,7 +41,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     }`;
 
   return (
-    <div className="flex flex-wrap items-center gap-1 p-1.5 bg-canvas-surface border-b border-border sticky top-0 z-10">
+    <div className="flex flex-wrap items-center gap-1 p-1.5 bg-canvas-surface border-b border-border sticky top-[57px] z-10 rounded-t-xs">
       <button
         type="button"
         onClick={() => editor.chain().focus().toggleBold().run()}

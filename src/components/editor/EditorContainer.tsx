@@ -495,6 +495,20 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
     );
   }
 
+  const renderStyleIcon = (type: string) => {
+    switch (type) {
+      case "rich_text":
+        return <FileText className="w-3 h-3 text-ink-secondary" />;
+      case "markdown":
+        return <FileCode className="w-3 h-3 text-ink-secondary" />;
+      case "latex":
+      case "typst":
+        return <FileSpreadsheet className="w-3 h-3 text-ink-secondary" />;
+      default:
+        return <FileText className="w-3 h-3 text-ink-secondary" />;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-canvas flex flex-col selection:bg-sage-soft selection:text-ink">
       {/* Top Architectural Navigation Bar */}
@@ -526,11 +540,12 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
           <div className="flex items-center gap-2">
             {/* Document Style Badge */}
             <div
-              className="flex items-center gap-1 font-mono text-[10px] uppercase text-ink-secondary bg-canvas-subtle border border-border px-2 py-1 rounded-xs"
+              className="flex items-center gap-1.5 font-mono text-[10px] uppercase text-ink-secondary bg-canvas-subtle border border-border px-2 py-1 rounded-xs"
               title={`Project Style: ${doc.content_type}`}
             >
+              {renderStyleIcon(doc.content_type)}
               <span>STYLE:</span>
-              <span className="font-bold text-ink">{doc.content_type.replace("_", " ")}</span>
+              <span className="font-bold text-ink">{doc.content_type.replace("_", " ").toUpperCase()}</span>
             </div>
 
             {/* User Role Badge */}

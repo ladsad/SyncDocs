@@ -154,6 +154,14 @@ A living record of the development timeline, key architectural decisions (ADRs),
   3. *Diagnostic Drawer & PDF Viewer:* Embed compiled PDF output in an interactive frame alongside an expandable terminal drawer detailing duration, warnings, errors, and TeX transcript logs.
 - **Status:** Accepted.
 
+### ADR-022: UI & Theme Continuity Across Multi-Style Editing Surfaces
+- **Context:** With three heterogeneous editing engines (Tiptap ProseMirror, CodeMirror 6 Markdown, CodeMirror 6 LaTeX), inconsistent scroll offsets, scrollbars, selection highlights, and format affordances risked fragmenting the Light Technical Brutalism design language.
+- **Decision:** Standardize UI & theme continuity across all surfaces:
+  1. *Global Brutalist Scrollbars & Selection:* Enforce flat 6px square scrollbars (`#D6CEC1` thumb over `#EAE2D6` track with `#8B9A6E` hover) and semi-transparent sage selection highlights (`rgba(139, 154, 110, 0.28)`) globally in `globals.css`.
+  2. *Unified Sticky Toolbar Offsets:* Align all surface toolbars (Tiptap, Markdown, LaTeX) to `sticky top-[57px] z-10` immediately beneath the sticky top navigation header, eliminating jumpy vertical re-layouts and removing clipping `overflow-hidden` constraints.
+  3. *Consistent Format Indicators:* Unify document type badges across the dashboard and editor header with corresponding format icons (`FileText`, `FileCode`, `FileSpreadsheet`) and uppercase monospace labeling (`RICH TEXT`, `MARKDOWN`, `LATEX`).
+- **Status:** Accepted.
+
 ---
 
 ## 3. Notable Issues Encountered & Resolutions

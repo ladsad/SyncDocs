@@ -95,10 +95,10 @@ export function RichTextEditor({
   const charCount = text.length;
 
   return (
-    <div className="border border-border rounded-xs bg-canvas-surface overflow-hidden flex flex-col">
+    <div className="border border-border rounded-xs bg-canvas-surface flex flex-col relative">
       <EditorToolbar editor={editor} />
       <EditorContent editor={editor} />
-      <div className="px-4 py-2 bg-canvas-subtle border-t border-border font-mono text-[11px] text-ink-muted flex items-center justify-between">
+      <div className="px-4 py-2 bg-canvas-subtle border-t border-border font-mono text-[11px] text-ink-muted flex items-center justify-between rounded-b-xs">
         <div className="flex items-center gap-3">
           <span>
             WORDS: {wordCount.toString().padStart(3, "0")}

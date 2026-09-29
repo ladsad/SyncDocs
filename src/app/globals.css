@@ -17,6 +17,36 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Light Technical Brutalism Selection */
+::selection {
+  background-color: rgba(139, 154, 110, 0.28);
+  color: #252822;
+}
+
+/* Light Technical Brutalism Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #D6CEC1 #EAE2D6;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #EAE2D6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D6CEC1;
+  border-radius: 0px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8B9A6E;
+}
+
 /* Subtle Technical Grid Background */
 .bg-technical-grid {
   background-image:
