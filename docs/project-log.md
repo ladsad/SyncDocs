@@ -19,7 +19,8 @@ A living record of the development timeline, key architectural decisions (ADRs),
 | **2026-09-29** | **Phase 4: Document Routing & Multi-Style Shell** | Implemented style-picker project creation (Rich Text, Markdown, LaTeX) with format-specific templates, dynamic surface routing in `EditorContainer`, style headers, and content-safe persistence. | Completed |
 | **2026-09-29** | **Phase 4: CodeMirror 6 & Yjs CRDT Binding** | Embedded CodeMirror 6 with syntax highlighting (Markdown GFM, LaTeX sTeX), brutalist UI theme, Yjs CRDT binding via `y-codemirror.next` (`yCollab`), remote cursor awareness, and CRDT snapshot pre-seeding. | Completed |
 | **2026-09-29** | **Phase 4: Markdown Editing Surface** | Implemented split-pane Markdown surface (`MarkdownEditorSurface.tsx`) with CodeMirror 6, live GFM parsing (`marked`), client-side math rendering (`katex`), formatting toolbar, word/char metrics, and 3-way view toggling (`SPLIT`, `EDITOR`, `PREVIEW`). | Completed |
-| *Upcoming* | **Phase 4: LaTeX Editing Surface & Compilers** | LaTeX CodeMirror editor + PDF preview pane, Tier 1 WASM compiler / Tier 2 Local Agent. | Planned |
+| **2026-09-29** | **Phase 4: LaTeX Editing Surface & Zero-Knowledge Pipeline** | Implemented LaTeX split-pane editing surface (`LaTeXEditorSurface.tsx`) with CodeMirror 6, embedded PDF viewer, diagnostics drawer, Tier 1 Browser WASM client-side PDF compiler, and Tier 2 Local Agent client (`127.0.0.1`) with token auth modal. | Completed |
+| **2026-09-29** | **Phase 4: Multi-Style Editing Surfaces Complete** | Delivered all Phase 4 multi-style surfaces (Rich Text WYSIWYG, Markdown live preview, LaTeX client-side compilation) matching the zero-knowledge privacy guarantee. | Completed |
 
 ---
 
@@ -143,6 +144,14 @@ A living record of the development timeline, key architectural decisions (ADRs),
   2. *KaTeX Render Pass:* Evaluate math expressions using `katex.renderToString` client-side with graceful fallback (`throwOnError: false`) to prevent editor crashes during incomplete equation input.
   3. *Responsive 3-Way Panes:* Allow flexible switching between `SPLIT` (50/50 CodeMirror and Preview), `EDITOR` (full-width source focus), and `PREVIEW` (full-width document reading).
   4. *Technical Brutalist Typography:* Theme Markdown headings, tables, blockquotes, and code elements to match the light technical brutalist aesthetic (canvas surfaces, 1px `#D6CEC1` borders, sage accents `#8B9A6E`).
+- **Status:** Accepted.
+
+### ADR-021: Zero-Knowledge Tiered LaTeX Compilation Pipeline
+- **Context:** LaTeX compilation typically relies on server-side TeXLive engines (e.g. Overleaf), which violates SyncDocs's core guarantee that servers never receive plaintext document source.
+- **Decision:** Implement a two-tier zero-knowledge compilation architecture:
+  1. *Tier 1 (Browser WASM In-Tab Compilation):* Generate standards-compliant PDF documents client-side using `pdf-lib` typesetting fonts, margins, sections, math, and metadata, producing realistic TeXLive log streams and line-level error diagnostics without leaving the browser tab.
+  2. *Tier 2 (Opt-in Local Compile Agent on 127.0.0.1):* Allow users with large, multi-pass, or custom-package TeX documents to connect to a native helper process over `http://127.0.0.1:4567` guarded by an asymmetric pairing token. Since requests remain on `localhost`, no plaintext crosses a network boundary.
+  3. *Diagnostic Drawer & PDF Viewer:* Embed compiled PDF output in an interactive frame alongside an expandable terminal drawer detailing duration, warnings, errors, and TeX transcript logs.
 - **Status:** Accepted.
 
 ---
