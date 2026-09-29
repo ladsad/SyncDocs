@@ -7,6 +7,7 @@ import { Document, DocumentRole, SaveStatus } from "@/types/document";
 import { updateDocument, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { cryptoVault } from "@/lib/crypto/vault";
 import { RichTextEditor } from "./RichTextEditor";
+import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import { ShareModal } from "./ShareModal";
 import { UserProfileModal } from "../ui/UserProfileModal";
 import { StatusBadge } from "../ui/StatusBadge";
@@ -361,62 +362,44 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
         );
       case "markdown":
         return (
-          <div className="border border-border rounded-xs bg-canvas-surface p-8 text-center space-y-4">
-            <div className="w-10 h-10 bg-canvas-subtle border border-border text-ink-muted mx-auto flex items-center justify-center rounded-xs">
-              <FileCode className="w-5 h-5 text-sage" />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between font-mono text-[11px] text-ink-secondary bg-canvas-surface border border-border px-3 py-1.5 rounded-xs">
+              <span className="flex items-center gap-1.5">
+                <FileCode className="w-3.5 h-3.5 text-sage" />
+                <span className="font-bold text-ink">02 / MARKDOWN SOURCE</span>
+              </span>
+              <span className="text-ink-muted">SYNTAX: COMMONMARK / GFM</span>
             </div>
-            <div className="space-y-1">
-              <h3 className="font-mono text-xs font-bold uppercase text-ink">
-                02 / MARKDOWN SURFACE ACTIVATED
-              </h3>
-              <p className="text-xs text-ink-secondary max-w-md mx-auto">
-                Routed to Markdown surface. Next step: CodeMirror 6 editor with live AST preview pane.
-              </p>
-            </div>
-            <div className="font-mono text-[11px] text-ink-muted bg-canvas-subtle border border-border p-3 max-w-md mx-auto text-left rounded-xs space-y-1">
-              <div className="flex justify-between">
-                <span>FORMAT:</span>
-                <span className="text-ink">MARKDOWN (COMMONMARK)</span>
-              </div>
-              <div className="flex justify-between">
-                <span>SYNC ENGINE:</span>
-                <span className="text-ink">YJS CRDT READY</span>
-              </div>
-              <div className="flex justify-between">
-                <span>SECURITY:</span>
-                <span className="text-status-success font-semibold">AES-256-GCM E2EE</span>
-              </div>
-            </div>
+            <CodeMirrorEditor
+              initialContent={typeof content === "string" ? content : ""}
+              contentType="markdown"
+              onChange={handleContentChange}
+              provider={provider}
+              userPresence={currentUser}
+              editable={isEditable}
+              minHeight="550px"
+            />
           </div>
         );
       case "latex":
         return (
-          <div className="border border-border rounded-xs bg-canvas-surface p-8 text-center space-y-4">
-            <div className="w-10 h-10 bg-canvas-subtle border border-border text-ink-muted mx-auto flex items-center justify-center rounded-xs">
-              <FileSpreadsheet className="w-5 h-5 text-sage" />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between font-mono text-[11px] text-ink-secondary bg-canvas-surface border border-border px-3 py-1.5 rounded-xs">
+              <span className="flex items-center gap-1.5">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-sage" />
+                <span className="font-bold text-ink">03 / LATEX SOURCE</span>
+              </span>
+              <span className="text-ink-muted">SYNTAX: STEX / LATEX</span>
             </div>
-            <div className="space-y-1">
-              <h3 className="font-mono text-xs font-bold uppercase text-ink">
-                03 / LATEX SURFACE ACTIVATED
-              </h3>
-              <p className="text-xs text-ink-secondary max-w-md mx-auto">
-                Routed to LaTeX surface. Next step: CodeMirror 6 editor with client-side WASM compilation.
-              </p>
-            </div>
-            <div className="font-mono text-[11px] text-ink-muted bg-canvas-subtle border border-border p-3 max-w-md mx-auto text-left rounded-xs space-y-1">
-              <div className="flex justify-between">
-                <span>FORMAT:</span>
-                <span className="text-ink">LATEX SOURCE</span>
-              </div>
-              <div className="flex justify-between">
-                <span>COMPILATION:</span>
-                <span className="text-ink">CLIENT-SIDE (TIER 1 WASM / TIER 2 LOCAL AGENT)</span>
-              </div>
-              <div className="flex justify-between">
-                <span>SECURITY:</span>
-                <span className="text-status-success font-semibold">AES-256-GCM E2EE</span>
-              </div>
-            </div>
+            <CodeMirrorEditor
+              initialContent={typeof content === "string" ? content : ""}
+              contentType="latex"
+              onChange={handleContentChange}
+              provider={provider}
+              userPresence={currentUser}
+              editable={isEditable}
+              minHeight="550px"
+            />
           </div>
         );
     }

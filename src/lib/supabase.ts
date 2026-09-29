@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import * as Y from "yjs";
 import { Document, DocumentContentType, StoredDocumentRow } from "@/types/document";
 import { cryptoVault } from "./crypto/vault";
 import { encryptDocumentPayload, decryptDocumentRow } from "./crypto/document-crypto";
+import { uint8ArrayToBase64 } from "./sync/supabase-provider";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -233,10 +235,22 @@ export async function createDocument(
     currentUserId = session.userId;
   }
 
+  // Pre-seed initial CRDT binary snapshot for plaintext source styles (Markdown/LaTeX)
+  let initialYjsState: string | null = null;
+  if (contentType === "markdown" || contentType === "latex") {
+    const initDoc = new Y.Doc();
+    const initText = initDoc.getText("codemirror");
+    if (typeof docContent === "string" && docContent.length > 0) {
+      initText.insert(0, docContent);
+    }
+    initialYjsState = uint8ArrayToBase64(Y.encodeStateAsUpdate(initDoc));
+    initDoc.destroy();
+  }
+
   if (isEncrypted) {
     const dk = await cryptoVault.createAndStoreDocumentKey(newId, currentUserId);
     const encryptedData = await encryptDocumentPayload(
-      { title: docTitle, content: docContent, yjs_state: null },
+      { title: docTitle, content: docContent, yjs_state: initialYjsState },
       dk
     );
     insertPayload = {
@@ -252,6 +266,7 @@ export async function createDocument(
       title: docTitle,
       content_type: contentType,
       content: docContent,
+      yjs_state: initialYjsState,
       is_encrypted: false,
     };
   }

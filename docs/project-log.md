@@ -17,7 +17,8 @@ A living record of the development timeline, key architectural decisions (ADRs),
 | **2026-09-07** | **First-Time Onboarding & Strict Access Control** | Added `OnboardingModal` for automatic browser keypair/email setup, removed unauthenticated deterministic key fallbacks, implemented strict access restriction gates in `EditorContainer`, and fixed PostgREST query filtering with incoming invite dashboard alerts. | Completed |
 | **2026-09-07** | **Pre-Phase 4: Light Technical Brutalism Design Overhaul** | Overhauled UI to a light-themed technical brutalist / Swiss-grid design language. Single 2D canvas, zero artificial depth/shadows, warm neutral & sage color palette, exposed structural grid, geometric radius (0–4px), monospace technical metrics, and flat structural panels. | Completed |
 | **2026-09-29** | **Phase 4: Document Routing & Multi-Style Shell** | Implemented style-picker project creation (Rich Text, Markdown, LaTeX) with format-specific templates, dynamic surface routing in `EditorContainer`, style headers, and content-safe persistence. | Completed |
-| *Upcoming* | **Phase 4: CodeMirror & Editing Surfaces** | Markdown (CodeMirror + live preview), LaTeX (CodeMirror + Tier 1 WASM compiler / Tier 2 Local Agent). | In Progress |
+| **2026-09-29** | **Phase 4: CodeMirror 6 & Yjs CRDT Binding** | Embedded CodeMirror 6 with syntax highlighting (Markdown GFM, LaTeX sTeX), brutalist UI theme, Yjs CRDT binding via `y-codemirror.next` (`yCollab`), remote cursor awareness, and CRDT snapshot pre-seeding. | Completed |
+| *Upcoming* | **Phase 4: Previews & Compilers** | Markdown live AST preview pane, LaTeX Tier 1 WASM compiler / Tier 2 Local Agent. | In Progress |
 
 ---
 
@@ -123,6 +124,15 @@ A living record of the development timeline, key architectural decisions (ADRs),
   2. *Format-Specific Templates:* Automatically seed newly created documents with valid initial content (ProseMirror JSON for Rich Text, Markdown headers for Markdown, preamble/skeleton for LaTeX).
   3. *Dynamic Surface Shell:* Route `EditorContainer` to the appropriate surface via `doc.content_type`, display the active format badge in the top navigation bar, and dynamically expand layout widths for split-pane surfaces.
   4. *Content-Safe Persistence:* Guard document updates against overwriting empty source strings with ProseMirror JSON trees during autosave.
+- **Status:** Accepted.
+
+### ADR-019: CodeMirror 6 & Yjs Plaintext CRDT Binding
+- **Context:** Markdown and LaTeX editing surfaces require full-featured source-code editing with syntax highlighting, bracket matching, line numbers, and multi-user CRDT synchronization without server-side plaintext parsing.
+- **Decision:** Integrate CodeMirror 6 bound to Yjs via `y-codemirror.next`:
+  1. *Plaintext CRDT Structure:* Store source code in `ydoc.getText("codemirror")`, delegating update merging and undo/redo to `yCollab` and `Y.UndoManager` instead of CodeMirror's standard history extension.
+  2. *Multi-Language Highlighting:* Configure `@codemirror/lang-markdown` for Markdown documents and `@codemirror/legacy-modes/mode/stex` for LaTeX documents.
+  3. *Brutalist Theme:* Restrain editor styling to match the Swiss-grid design system (canvas `#F7F2EB`, border `#D6CEC1`, ink `#252822`, sage selections `#8B9A6E`, monospace JetBrains Mono).
+  4. *Snapshot Pre-seeding:* Pre-seed the initial binary CRDT snapshot for newly created Markdown and LaTeX documents in `createDocument` to prevent concurrent insertion duplication on first mount.
 - **Status:** Accepted.
 
 ---
