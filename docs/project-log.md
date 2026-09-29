@@ -19,8 +19,8 @@ A living record of the development timeline, key architectural decisions (ADRs),
 | **2026-09-29** | **Phase 4: Document Routing & Multi-Style Shell** | Implemented style-picker project creation (Rich Text, Markdown, LaTeX) with format-specific templates, dynamic surface routing in `EditorContainer`, style headers, and content-safe persistence. | Completed |
 | **2026-09-29** | **Phase 4: CodeMirror 6 & Yjs CRDT Binding** | Embedded CodeMirror 6 with syntax highlighting (Markdown GFM, LaTeX sTeX), brutalist UI theme, Yjs CRDT binding via `y-codemirror.next` (`yCollab`), remote cursor awareness, and CRDT snapshot pre-seeding. | Completed |
 | **2026-09-29** | **Phase 4: Markdown Editing Surface** | Implemented split-pane Markdown surface (`MarkdownEditorSurface.tsx`) with CodeMirror 6, live GFM parsing (`marked`), client-side math rendering (`katex`), formatting toolbar, word/char metrics, and 3-way view toggling (`SPLIT`, `EDITOR`, `PREVIEW`). | Completed |
-| **2026-09-29** | **Phase 4: LaTeX Editing Surface & Zero-Knowledge Pipeline** | Implemented LaTeX split-pane editing surface (`LaTeXEditorSurface.tsx`) with CodeMirror 6, embedded PDF viewer, diagnostics drawer, Tier 1 Browser WASM client-side PDF compiler, and Tier 2 Local Agent client (`127.0.0.1`) with token auth modal. | Completed |
-| **2026-09-29** | **Phase 4: Multi-Style Editing Surfaces Complete** | Delivered all Phase 4 multi-style surfaces (Rich Text WYSIWYG, Markdown live preview, LaTeX client-side compilation) matching the zero-knowledge privacy guarantee. | Completed |
+| **2026-09-29** | **Phase 4: Multi-Style Editing Surfaces & Polish Complete** | Delivered all Phase 4 multi-style surfaces (Rich Text, Markdown, LaTeX), client-side zero-knowledge document exporter (PDF/MD/HTML/TXT/TEX), version history with snapshot rollbacks, and CRDT-synced collaborative encrypted comments. | Completed |
+
 
 ---
 
@@ -160,6 +160,29 @@ A living record of the development timeline, key architectural decisions (ADRs),
   1. *Global Brutalist Scrollbars & Selection:* Enforce flat 6px square scrollbars (`#D6CEC1` thumb over `#EAE2D6` track with `#8B9A6E` hover) and semi-transparent sage selection highlights (`rgba(139, 154, 110, 0.28)`) globally in `globals.css`.
   2. *Unified Sticky Toolbar Offsets:* Align all surface toolbars (Tiptap, Markdown, LaTeX) to `sticky top-[57px] z-10` immediately beneath the sticky top navigation header, eliminating jumpy vertical re-layouts and removing clipping `overflow-hidden` constraints.
   3. *Consistent Format Indicators:* Unify document type badges across the dashboard and editor header with corresponding format icons (`FileText`, `FileCode`, `FileSpreadsheet`) and uppercase monospace labeling (`RICH TEXT`, `MARKDOWN`, `LATEX`).
+- **Status:** Accepted.
+
+### ADR-023: Zero-Knowledge Client-Side Document Exporter
+- **Context:** Exporting documents (to PDF, HTML, Markdown, Plain Text, or TeX) in conventional tools relies on server-side rendering pipelines (e.g. headless Chrome or pandoc), which would violate SyncDocs's privacy invariant.
+- **Decision:** Execute all export conversions strictly in-browser:
+  1. *AST Transformations:* Convert ProseMirror/Tiptap node trees into Markdown via an AST walker, and Markdown into HTML via `marked`.
+  2. *Client Vector PDF Generation:* Build standalone vector PDF files using `pdf-lib` embedding fonts, margins, headers, pagination, and dividing rules completely in memory.
+  3. *Zero-Server Downloads:* Construct in-memory `Blob` instances with explicit MIME types and trigger instant browser file downloads via ephemeral object URLs.
+- **Status:** Accepted.
+
+### ADR-024: Zero-Knowledge Snapshot Version History & Rollback
+- **Context:** Users need the ability to inspect historical revisions and roll back accidental edits without storing unencrypted document history on the database.
+- **Decision:** Implement client-side encrypted document checkpoints:
+  1. *Dual Persistence Layer:* Store encrypted snapshots in `document_snapshots` Postgres table with graceful fallback to browser `localStorage` (`syncdocs_snapshots_<docId>`).
+  2. *Client Decryption:* Snapshots preserve `encrypted_content` and `encrypted_yjs_state` encrypted with Document Keys; only authenticated clients decrypt snapshots locally for previewing.
+  3. *Rollback Mechanism:* Reverting a checkpoint invokes `restoreDocumentSnapshot()`, atomically replacing active content and Yjs binary state vector.
+- **Status:** Accepted.
+
+### ADR-025: CRDT Collaborative Encrypted Comment Threads
+- **Context:** Adding comment threads usually requires backend relational tables (`comments`, `threads`, `replies`), creating risk of leaking unencrypted metadata or comment text to server operators.
+- **Decision:** Model collaborative comment threads entirely inside the existing Yjs CRDT structure (`ydoc.getArray('doc_comments')`):
+  1. *Automatic Wire & Rest Encryption:* Because all Yjs updates and state snapshots are encrypted with AES-256-GCM before transmission over Supabase Realtime broadcast and storage, comment threads inherit zero-knowledge privacy with no extra crypto code.
+  2. *Live Sync & Presence:* Comments, replies, resolution states, and deletions propagate peer-to-peer across active browser sessions in real-time with automatic CRDT conflict resolution.
 - **Status:** Accepted.
 
 ---

@@ -11,6 +11,9 @@ import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import { MarkdownEditorSurface } from "./MarkdownEditorSurface";
 import { LaTeXEditorSurface } from "./latex/LaTeXEditorSurface";
 import { ShareModal } from "./ShareModal";
+import { ExportModal } from "./ExportModal";
+import { VersionHistoryModal } from "./VersionHistoryModal";
+import { CommentsDrawer, CommentThread } from "./CommentsDrawer";
 import { UserProfileModal } from "../ui/UserProfileModal";
 import { StatusBadge } from "../ui/StatusBadge";
 import { redeemDocumentInvitation } from "@/lib/crypto/document-crypto";
@@ -41,6 +44,9 @@ import {
   FileText,
   FileCode,
   FileSpreadsheet,
+  Download,
+  History,
+  MessageSquare,
 } from "lucide-react";
 import { importRawDocumentKey } from "@/lib/crypto/keys";
 
@@ -64,6 +70,10 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const [isEncrypted, setIsEncrypted] = useState(true);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isCommentsDrawerOpen, setIsCommentsDrawerOpen] = useState(false);
+  const [unresolvedCommentCount, setUnresolvedCommentCount] = useState(0);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<DocumentRole>(
     initialDocument.role || "editor"
@@ -78,6 +88,24 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
   const [currentUser] = useState(() => getRandomUserPresence());
   const [provider, setProvider] = useState<SupabaseYjsProvider | null>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
+
+  // Track unresolved comments count
+  useEffect(() => {
+    const activeDoc = provider?.doc || ydocRef.current;
+    if (!activeDoc) return;
+
+    const yComments = activeDoc.getArray<CommentThread>("doc_comments");
+    const updateCount = () => {
+      const active = yComments.toArray().filter((c) => !c.resolved).length;
+      setUnresolvedCommentCount(active);
+    };
+
+    updateCount();
+    yComments.observe(updateCount);
+    return () => {
+      yComments.unobserve(updateCount);
+    };
+  }, [provider]);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstRender = useRef(true);
@@ -596,6 +624,41 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
 
             <StatusBadge status={isEditable ? saveStatus : "saved"} />
 
+            {/* Export Document Button */}
+            <button
+              onClick={() => setIsExportModalOpen(true)}
+              className="hidden md:inline-flex items-center gap-1 px-2.5 py-1 text-xs font-mono text-ink bg-canvas-subtle hover:bg-canvas-neutral border border-border rounded-xs transition-colors"
+              title="Export document (PDF, Markdown, HTML, Plain text)"
+            >
+              <Download className="w-3 h-3 text-ink-muted" />
+              <span>EXPORT</span>
+            </button>
+
+            {/* Version History Button */}
+            <button
+              onClick={() => setIsHistoryModalOpen(true)}
+              className="hidden lg:inline-flex items-center gap-1 px-2.5 py-1 text-xs font-mono text-ink bg-canvas-subtle hover:bg-canvas-neutral border border-border rounded-xs transition-colors"
+              title="Inspect snapshots and restore versions"
+            >
+              <History className="w-3 h-3 text-ink-muted" />
+              <span>HISTORY</span>
+            </button>
+
+            {/* Comments Drawer Button */}
+            <button
+              onClick={() => setIsCommentsDrawerOpen((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-ink bg-canvas-subtle hover:bg-canvas-neutral border border-border rounded-xs transition-colors"
+              title="Collaborative E2EE comments"
+            >
+              <MessageSquare className="w-3 h-3 text-ink-muted" />
+              <span className="hidden sm:inline">COMMENTS</span>
+              {unresolvedCommentCount > 0 && (
+                <span className="px-1 py-0.2 bg-sage text-canvas-DEFAULT font-bold text-[9px] rounded-xs">
+                  {unresolvedCommentCount}
+                </span>
+              )}
+            </button>
+
             {/* Profile / Identity Button */}
             <button
               onClick={() => setIsProfileModalOpen(true)}
@@ -656,6 +719,36 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         onProfileUpdated={(newEmail) => setUserEmail(newEmail)}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        document={{ ...doc, title, content }}
+      />
+
+      {/* Version History Modal */}
+      <VersionHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        document={doc}
+        onRestored={(newContent) => {
+          setContent(newContent);
+        }}
+      />
+
+      {/* Collaborative Comments Drawer */}
+      <CommentsDrawer
+        isOpen={isCommentsDrawerOpen}
+        onClose={() => setIsCommentsDrawerOpen(false)}
+        ydoc={provider?.doc || ydocRef.current}
+        currentUser={{
+          name: currentUser.name,
+          color: currentUser.color,
+          email: userEmail || undefined,
+        }}
+        editable={isEditable}
       />
     </div>
   );

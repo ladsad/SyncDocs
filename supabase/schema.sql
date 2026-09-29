@@ -68,6 +68,17 @@ create table if not exists document_invitations (
   created_at timestamptz not null default now()
 );
 
+-- 6. Document Snapshots table (Zero-knowledge encrypted version history)
+create table if not exists document_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  document_id uuid not null references documents(id) on delete cascade,
+  name text,
+  encrypted_content jsonb,
+  encrypted_yjs_state jsonb,
+  created_by text,
+  created_at timestamptz not null default now()
+);
+
 -- Indexes
 create index if not exists idx_documents_updated_at on documents(updated_at desc);
 create index if not exists idx_document_keys_user_id on document_keys(user_id);
@@ -75,6 +86,7 @@ create index if not exists idx_permissions_user_id on permissions(user_id);
 create index if not exists idx_permissions_doc_user on permissions(document_id, user_id);
 create index if not exists idx_doc_invites_doc_id on document_invitations(document_id);
 create index if not exists idx_doc_invites_token on document_invitations(invite_token);
+create index if not exists idx_doc_snapshots_doc_id on document_snapshots(document_id, created_at desc);
 
 -- Auto-update updated_at timestamp trigger
 create or replace function update_updated_at_column()
@@ -97,6 +109,7 @@ alter table public.users enable row level security;
 alter table public.document_keys enable row level security;
 alter table public.permissions enable row level security;
 alter table public.document_invitations enable row level security;
+alter table public.document_snapshots enable row level security;
 
 -- Permissive access policy for development/fallback
 drop policy if exists "Allow all access to documents" on public.documents;
@@ -113,3 +126,6 @@ create policy "Allow all access to permissions" on public.permissions for all us
 
 drop policy if exists "Allow all access to document_invitations" on public.document_invitations;
 create policy "Allow all access to document_invitations" on public.document_invitations for all using (true) with check (true);
+
+drop policy if exists "Allow all access to document_snapshots" on public.document_snapshots;
+create policy "Allow all access to document_snapshots" on public.document_snapshots for all using (true) with check (true);

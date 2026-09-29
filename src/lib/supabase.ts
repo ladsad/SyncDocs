@@ -1,6 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import * as Y from "yjs";
-import { Document, DocumentContentType, StoredDocumentRow } from "@/types/document";
+import {
+  Document,
+  DocumentContentType,
+  StoredDocumentRow,
+  DocumentSnapshot,
+  StoredDocumentSnapshotRow,
+} from "@/types/document";
 import { cryptoVault } from "./crypto/vault";
 import { encryptDocumentPayload, decryptDocumentRow } from "./crypto/document-crypto";
 import { uint8ArrayToBase64 } from "./sync/supabase-provider";
@@ -396,3 +402,191 @@ export async function deleteDocument(id: string): Promise<boolean> {
   saveLocalDocRows(rows);
   return true;
 }
+
+const SNAPSHOTS_STORAGE_KEY_PREFIX = "syncdocs_snapshots_";
+
+export async function createDocumentSnapshot(
+  documentId: string,
+  name?: string
+): Promise<DocumentSnapshot | null> {
+  const dk = await cryptoVault.getLocalFallbackDocumentKey(documentId);
+  if (!dk) {
+    console.error("Cannot create snapshot without document key:", documentId);
+    return null;
+  }
+
+  let docRow: StoredDocumentRow | null = null;
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("id", documentId)
+      .single();
+    if (!error && data) {
+      docRow = data;
+    }
+  }
+
+  if (!docRow) {
+    const rows = getLocalDocRows();
+    docRow = rows.find((r) => r.id === documentId) || null;
+  }
+
+  if (!docRow) return null;
+
+  const snapshotId = crypto.randomUUID();
+  const userEmail = cryptoVault.getUserEmail() || "Anonymous";
+  const now = new Date().toISOString();
+
+  const snapshotRow: StoredDocumentSnapshotRow = {
+    id: snapshotId,
+    document_id: documentId,
+    name:
+      name ||
+      `Checkpoint ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+    encrypted_content: docRow.encrypted_content,
+    encrypted_yjs_state: docRow.encrypted_yjs_state,
+    created_by: userEmail,
+    created_at: now,
+  };
+
+  if (supabase) {
+    const { error } = await supabase.from("document_snapshots").insert(snapshotRow);
+    if (!error) {
+      const decrypted = await decryptDocumentRow(
+        {
+          id: docRow.id,
+          content: docRow.content,
+          yjs_state: docRow.yjs_state,
+          encrypted_content: docRow.encrypted_content,
+          encrypted_yjs_state: docRow.encrypted_yjs_state,
+          is_encrypted: docRow.is_encrypted,
+          content_type: docRow.content_type,
+          created_at: now,
+          updated_at: now,
+        },
+        dk
+      );
+      return {
+        id: snapshotId,
+        document_id: documentId,
+        name: snapshotRow.name,
+        content: decrypted.content,
+        yjs_state: decrypted.yjs_state,
+        created_by: userEmail,
+        created_at: now,
+      };
+    }
+    console.warn("Supabase snapshot insert failed, falling back to local storage:", error?.message);
+  }
+
+  // Local storage fallback
+  if (typeof window !== "undefined") {
+    const key = `${SNAPSHOTS_STORAGE_KEY_PREFIX}${documentId}`;
+    const raw = localStorage.getItem(key);
+    const list: StoredDocumentSnapshotRow[] = raw ? JSON.parse(raw) : [];
+    list.unshift(snapshotRow);
+    localStorage.setItem(key, JSON.stringify(list));
+  }
+
+  const decrypted = await decryptDocumentRow(
+    {
+      id: docRow.id,
+      content: docRow.content,
+      yjs_state: docRow.yjs_state,
+      encrypted_content: docRow.encrypted_content,
+      encrypted_yjs_state: docRow.encrypted_yjs_state,
+      is_encrypted: docRow.is_encrypted,
+      content_type: docRow.content_type,
+      created_at: now,
+      updated_at: now,
+    },
+    dk
+  );
+
+  return {
+    id: snapshotId,
+    document_id: documentId,
+    name: snapshotRow.name,
+    content: decrypted.content,
+    yjs_state: decrypted.yjs_state,
+    created_by: userEmail,
+    created_at: now,
+  };
+}
+
+export async function fetchDocumentSnapshots(documentId: string): Promise<DocumentSnapshot[]> {
+  const dk = await cryptoVault.getLocalFallbackDocumentKey(documentId);
+  let rows: StoredDocumentSnapshotRow[] = [];
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("document_snapshots")
+      .select("*")
+      .eq("document_id", documentId)
+      .order("created_at", { ascending: false });
+    if (!error && data) {
+      rows = data;
+    }
+  }
+
+  if (rows.length === 0 && typeof window !== "undefined") {
+    const key = `${SNAPSHOTS_STORAGE_KEY_PREFIX}${documentId}`;
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      try {
+        rows = JSON.parse(raw);
+      } catch (e) {
+        console.warn("Failed to parse local snapshots:", e);
+      }
+    }
+  }
+
+  const results: DocumentSnapshot[] = [];
+  for (const row of rows) {
+    try {
+      let content = null;
+      let yjs_state = null;
+      if (row.encrypted_content && dk) {
+        const decrypted = await decryptDocumentRow(
+          {
+            id: row.id,
+            encrypted_content: row.encrypted_content,
+            encrypted_yjs_state: row.encrypted_yjs_state,
+            is_encrypted: true,
+            content_type: "rich_text",
+            created_at: row.created_at,
+            updated_at: row.created_at,
+          },
+          dk
+        );
+        content = decrypted.content;
+        yjs_state = decrypted.yjs_state;
+      }
+      results.push({
+        id: row.id,
+        document_id: row.document_id,
+        name: row.name,
+        content,
+        yjs_state,
+        created_by: row.created_by,
+        created_at: row.created_at,
+      });
+    } catch (err) {
+      console.warn("Failed to decrypt snapshot:", row.id, err);
+    }
+  }
+
+  return results;
+}
+
+export async function restoreDocumentSnapshot(
+  documentId: string,
+  snapshot: DocumentSnapshot
+): Promise<Document | null> {
+  return await updateDocument(documentId, {
+    content: snapshot.content,
+    yjs_state: snapshot.yjs_state,
+  });
+}
+

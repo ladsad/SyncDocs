@@ -62,3 +62,23 @@ export interface StoredDocumentRow {
 }
 
 export type SaveStatus = "saved" | "saving" | "unsaved" | "error";
+
+export interface DocumentSnapshot {
+  id: string;
+  document_id: string;
+  name?: string;
+  content: any;
+  yjs_state?: string | null;
+  created_by?: string;
+  created_at: string;
+}
+
+export interface StoredDocumentSnapshotRow {
+  id: string;
+  document_id: string;
+  name?: string;
+  encrypted_content?: EncryptedPayload | null;
+  encrypted_yjs_state?: EncryptedPayload | null;
+  created_by?: string;
+  created_at: string;
+}
