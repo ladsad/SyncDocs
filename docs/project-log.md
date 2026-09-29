@@ -16,7 +16,8 @@ A living record of the development timeline, key architectural decisions (ADRs),
 | **2026-09-07** | **Production Readiness & Vercel Deployment** | Polished web metadata, dynamic document tab synchronization, SVG branding/favicon, live word/character counting, dashboard search, and configured Vercel deployment pipeline. | Completed |
 | **2026-09-07** | **First-Time Onboarding & Strict Access Control** | Added `OnboardingModal` for automatic browser keypair/email setup, removed unauthenticated deterministic key fallbacks, implemented strict access restriction gates in `EditorContainer`, and fixed PostgREST query filtering with incoming invite dashboard alerts. | Completed |
 | **2026-09-07** | **Pre-Phase 4: Light Technical Brutalism Design Overhaul** | Overhauled UI to a light-themed technical brutalist / Swiss-grid design language. Single 2D canvas, zero artificial depth/shadows, warm neutral & sage color palette, exposed structural grid, geometric radius (0–4px), monospace technical metrics, and flat structural panels. | Completed |
-| *Upcoming* | **Phase 4: Multi-Style Editing Surfaces** | Markdown (CodeMirror + live preview), LaTeX (CodeMirror + Tier 1 WASM compiler / Tier 2 Local Agent). | Planned |
+| **2026-09-29** | **Phase 4: Document Routing & Multi-Style Shell** | Implemented style-picker project creation (Rich Text, Markdown, LaTeX) with format-specific templates, dynamic surface routing in `EditorContainer`, style headers, and content-safe persistence. | Completed |
+| *Upcoming* | **Phase 4: CodeMirror & Editing Surfaces** | Markdown (CodeMirror + live preview), LaTeX (CodeMirror + Tier 1 WASM compiler / Tier 2 Local Agent). | In Progress |
 
 ---
 
@@ -110,9 +111,18 @@ A living record of the development timeline, key architectural decisions (ADRs),
 - **Decision:** Restrict Document Key resolution so that encrypted documents can only be decrypted if: (1) user is the creator with the local key, (2) user has an entry in `document_keys` and unwraps with their ECDH private key, (3) a `#key=...` direct key is provided, or (4) a valid `?invite=...#inviteKey=...` token is redeemed. Uninvited users receive an "Access Restricted" gate with zero access to the CRDT sync room.
 - **Status:** Accepted.
 
-### ADR-016: First-Time User Onboarding & Email Identity Prompt
+### ADR-017: First-Time User Onboarding & Email Identity Prompt
 - **Context:** Collaborators must know the recipient's email address to look up their public key and wrap Document Keys. Relying on auto-generated fallback emails led to unrecognized placeholder identities.
 - **Decision:** Introduce a first-visit `OnboardingModal` that prompts new users to provide their email address. The client immediately initializes their ECDH keypair, stores their profile locally, marks onboarding as complete, and publishes their public key to Supabase `users`.
+- **Status:** Accepted.
+
+### ADR-018: Multi-Style Document Routing & Content-Type Shell
+- **Context:** Phase 4 introduces multiple project styles (Rich Text, Markdown, LaTeX) requiring format-specific templates, editing surfaces, and sync bindings without leaking plaintext or complicating the database model.
+- **Decision:** Support document style routing at project creation and editor load time:
+  1. *Dashboard Style Picker:* Expose a style dropdown on the dashboard to initialize documents with their respective format (`rich_text`, `markdown`, `latex`).
+  2. *Format-Specific Templates:* Automatically seed newly created documents with valid initial content (ProseMirror JSON for Rich Text, Markdown headers for Markdown, preamble/skeleton for LaTeX).
+  3. *Dynamic Surface Shell:* Route `EditorContainer` to the appropriate surface via `doc.content_type`, display the active format badge in the top navigation bar, and dynamically expand layout widths for split-pane surfaces.
+  4. *Content-Safe Persistence:* Guard document updates against overwriting empty source strings with ProseMirror JSON trees during autosave.
 - **Status:** Accepted.
 
 ---

@@ -35,6 +35,9 @@ import {
   ShieldAlert,
   Loader2,
   Key,
+  FileText,
+  FileCode,
+  FileSpreadsheet,
 } from "lucide-react";
 import { importRawDocumentKey } from "@/lib/crypto/keys";
 
@@ -358,26 +361,62 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
         );
       case "markdown":
         return (
-          <div className="p-8 border border-slate-200 rounded-lg bg-white text-center text-slate-500">
-            Markdown editor surface will be enabled in future phases.
+          <div className="border border-border rounded-xs bg-canvas-surface p-8 text-center space-y-4">
+            <div className="w-10 h-10 bg-canvas-subtle border border-border text-ink-muted mx-auto flex items-center justify-center rounded-xs">
+              <FileCode className="w-5 h-5 text-sage" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-mono text-xs font-bold uppercase text-ink">
+                02 / MARKDOWN SURFACE ACTIVATED
+              </h3>
+              <p className="text-xs text-ink-secondary max-w-md mx-auto">
+                Routed to Markdown surface. Next step: CodeMirror 6 editor with live AST preview pane.
+              </p>
+            </div>
+            <div className="font-mono text-[11px] text-ink-muted bg-canvas-subtle border border-border p-3 max-w-md mx-auto text-left rounded-xs space-y-1">
+              <div className="flex justify-between">
+                <span>FORMAT:</span>
+                <span className="text-ink">MARKDOWN (COMMONMARK)</span>
+              </div>
+              <div className="flex justify-between">
+                <span>SYNC ENGINE:</span>
+                <span className="text-ink">YJS CRDT READY</span>
+              </div>
+              <div className="flex justify-between">
+                <span>SECURITY:</span>
+                <span className="text-status-success font-semibold">AES-256-GCM E2EE</span>
+              </div>
+            </div>
           </div>
         );
       case "latex":
         return (
-          <div className="p-8 border border-slate-200 rounded-lg bg-white text-center text-slate-500">
-            LaTeX editor surface will be enabled in future phases.
-          </div>
-        );
-      case "markdown":
-        return (
-          <div className="p-8 border border-border rounded-xs bg-canvas-surface text-center font-mono text-xs text-ink-muted">
-            02 / MARKDOWN SURFACE — SCHEDULED FOR PHASE 4
-          </div>
-        );
-      case "latex":
-        return (
-          <div className="p-8 border border-border rounded-xs bg-canvas-surface text-center font-mono text-xs text-ink-muted">
-            03 / LATEX SURFACE — SCHEDULED FOR PHASE 4 (TIER 1 WASM)
+          <div className="border border-border rounded-xs bg-canvas-surface p-8 text-center space-y-4">
+            <div className="w-10 h-10 bg-canvas-subtle border border-border text-ink-muted mx-auto flex items-center justify-center rounded-xs">
+              <FileSpreadsheet className="w-5 h-5 text-sage" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-mono text-xs font-bold uppercase text-ink">
+                03 / LATEX SURFACE ACTIVATED
+              </h3>
+              <p className="text-xs text-ink-secondary max-w-md mx-auto">
+                Routed to LaTeX surface. Next step: CodeMirror 6 editor with client-side WASM compilation.
+              </p>
+            </div>
+            <div className="font-mono text-[11px] text-ink-muted bg-canvas-subtle border border-border p-3 max-w-md mx-auto text-left rounded-xs space-y-1">
+              <div className="flex justify-between">
+                <span>FORMAT:</span>
+                <span className="text-ink">LATEX SOURCE</span>
+              </div>
+              <div className="flex justify-between">
+                <span>COMPILATION:</span>
+                <span className="text-ink">CLIENT-SIDE (TIER 1 WASM / TIER 2 LOCAL AGENT)</span>
+              </div>
+              <div className="flex justify-between">
+                <span>SECURITY:</span>
+                <span className="text-status-success font-semibold">AES-256-GCM E2EE</span>
+              </div>
+            </div>
           </div>
         );
     }
@@ -522,6 +561,15 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Document Style Badge */}
+            <div
+              className="flex items-center gap-1 font-mono text-[10px] uppercase text-ink-secondary bg-canvas-subtle border border-border px-2 py-1 rounded-xs"
+              title={`Project Style: ${doc.content_type}`}
+            >
+              <span>STYLE:</span>
+              <span className="font-bold text-ink">{doc.content_type.replace("_", " ")}</span>
+            </div>
+
             {/* User Role Badge */}
             <div
               className="hidden sm:flex items-center gap-1 font-mono text-[10px] uppercase text-ink-secondary bg-canvas-subtle border border-border px-2 py-1 rounded-xs"
@@ -608,7 +656,11 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
       </header>
 
       {/* Main Editing Surface Canvas */}
-      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6">
+      <main
+        className={`flex-1 w-full mx-auto p-4 sm:p-6 ${
+          doc.content_type === "rich_text" ? "max-w-5xl" : "max-w-7xl"
+        }`}
+      >
         {renderEditorSurface()}
       </main>
 

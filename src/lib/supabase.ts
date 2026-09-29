@@ -166,22 +166,65 @@ export async function fetchDocumentById(id: string): Promise<Document | null> {
   };
 }
 
+export function getDefaultContentForType(contentType: DocumentContentType): any {
+  switch (contentType) {
+    case "rich_text":
+      return {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Start writing..." }],
+          },
+        ],
+      };
+    case "markdown":
+      return "# Untitled\n\nStart writing in Markdown...";
+    case "latex":
+      return `\\documentclass{article}
+\\usepackage{amsmath}
+
+\\title{Untitled Document}
+\\author{}
+\\date{\\today}
+
+\\begin{document}
+\\maketitle
+
+\\section{Introduction}
+Start writing your \\LaTeX{} document here.
+
+\\end{document}`;
+    case "typst":
+      return "= Untitled Document\n\nStart writing in Typst...";
+    default:
+      return "";
+  }
+}
+
 export async function createDocument(
-  title: string = "Untitled Document",
+  title?: string,
   contentType: DocumentContentType = "rich_text",
-  initialContent: any = {
-    type: "doc",
-    content: [
-      {
-        type: "paragraph",
-        content: [{ type: "text", text: "Start writing..." }],
-      },
-    ],
-  },
+  initialContent?: any,
   isEncrypted: boolean = true
 ): Promise<Document> {
   const newId = crypto.randomUUID();
   let insertPayload: any;
+
+  const docTitle =
+    title ||
+    (contentType === "rich_text"
+      ? "Untitled Document"
+      : contentType === "markdown"
+      ? "Untitled Markdown"
+      : contentType === "latex"
+      ? "Untitled LaTeX"
+      : "Untitled Document");
+
+  const docContent =
+    initialContent !== undefined
+      ? initialContent
+      : getDefaultContentForType(contentType);
 
   // Ensure user session identity
   let currentUserId = cryptoVault.getUserId();
@@ -193,7 +236,7 @@ export async function createDocument(
   if (isEncrypted) {
     const dk = await cryptoVault.createAndStoreDocumentKey(newId, currentUserId);
     const encryptedData = await encryptDocumentPayload(
-      { title, content: initialContent, yjs_state: null },
+      { title: docTitle, content: docContent, yjs_state: null },
       dk
     );
     insertPayload = {
@@ -206,9 +249,9 @@ export async function createDocument(
     insertPayload = {
       id: newId,
       owner_id: currentUserId || null,
-      title,
+      title: docTitle,
       content_type: contentType,
-      content: initialContent,
+      content: docContent,
       is_encrypted: false,
     };
   }
@@ -277,8 +320,8 @@ export async function updateDocument(
     }
     const encryptedData = await encryptDocumentPayload(
       {
-        title: updates.title || "Untitled Document",
-        content: updates.content || { type: "doc", content: [] },
+        title: updates.title !== undefined ? updates.title : "Untitled Document",
+        content: updates.content !== undefined ? updates.content : { type: "doc", content: [] },
         yjs_state: updates.yjs_state || null,
       },
       dk

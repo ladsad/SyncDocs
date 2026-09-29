@@ -29,6 +29,7 @@ import {
   Mail,
   Key,
   ArrowRight,
+  ChevronDown,
 } from "lucide-react";
 import { ShareModal } from "../editor/ShareModal";
 import { UserProfileModal } from "../ui/UserProfileModal";
@@ -48,6 +49,8 @@ export function DocumentList() {
   const [redeeming, setRedeeming] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  const createMenuRef = React.useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedDocId, setCopiedDocId] = useState<string | null>(null);
   const [selectedShareDoc, setSelectedShareDoc] = useState<Document | null>(null);
@@ -55,6 +58,20 @@ export function DocumentList() {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const isSupabase = isSupabaseConfigured();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
+        setIsCreateMenuOpen(false);
+      }
+    };
+    if (isCreateMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isCreateMenuOpen]);
 
   const loadDocuments = async () => {
     try {
@@ -138,14 +155,7 @@ export function DocumentList() {
   ) => {
     try {
       setCreating(true);
-      const defaultTitle =
-        contentType === "rich_text"
-          ? "Untitled Document"
-          : contentType === "markdown"
-          ? "Untitled Markdown"
-          : "Untitled Document";
-
-      const newDoc = await createDocument(defaultTitle, contentType, undefined, true);
+      const newDoc = await createDocument(undefined, contentType, undefined, true);
       router.push(`/documents/${newDoc.id}`);
     } catch (error) {
       console.error("Failed to create document:", error);
@@ -275,14 +285,64 @@ export function DocumentList() {
               <span className="max-w-[130px] truncate">{userEmail || "IDENTITY"}</span>
             </button>
 
-            <button
-              onClick={() => handleCreateNew("rich_text")}
-              disabled={creating}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-canvas-DEFAULT bg-sage hover:bg-sage-hover border border-sage rounded-xs transition-colors disabled:opacity-50"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>NEW DOCUMENT</span>
-            </button>
+            {/* New Document Style Picker Dropdown */}
+            <div className="relative" ref={createMenuRef}>
+              <button
+                onClick={() => setIsCreateMenuOpen(!isCreateMenuOpen)}
+                disabled={creating}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-canvas-DEFAULT bg-sage hover:bg-sage-hover border border-sage rounded-xs transition-colors disabled:opacity-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>NEW DOCUMENT</span>
+                <ChevronDown className="w-3 h-3 ml-0.5 opacity-80" />
+              </button>
+
+              {isCreateMenuOpen && (
+                <div className="absolute right-0 mt-1 w-52 bg-canvas-surface border border-border rounded-xs z-30 font-mono text-xs divide-y divide-border shadow-none">
+                  <button
+                    onClick={() => {
+                      setIsCreateMenuOpen(false);
+                      handleCreateNew("rich_text");
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-canvas-subtle flex items-center justify-between group transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5 text-ink-muted group-hover:text-ink" />
+                      <span className="text-ink">01 / RICH TEXT</span>
+                    </div>
+                    <span className="text-[10px] text-ink-muted">WYSIWYG</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsCreateMenuOpen(false);
+                      handleCreateNew("markdown");
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-canvas-subtle flex items-center justify-between group transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileCode className="w-3.5 h-3.5 text-ink-muted group-hover:text-ink" />
+                      <span className="text-ink">02 / MARKDOWN</span>
+                    </div>
+                    <span className="text-[10px] text-ink-muted">SOURCE</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsCreateMenuOpen(false);
+                      handleCreateNew("latex");
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-canvas-subtle flex items-center justify-between group transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-ink-muted group-hover:text-ink" />
+                      <span className="text-ink">03 / LATEX</span>
+                    </div>
+                    <span className="text-[10px] text-ink-muted">WASM</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -401,14 +461,32 @@ export function DocumentList() {
                 Create a new end-to-end encrypted document to begin writing on a secure 2D canvas.
               </p>
             </div>
-            <button
-              onClick={() => handleCreateNew("rich_text")}
-              disabled={creating}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-canvas-DEFAULT bg-sage hover:bg-sage-hover border border-sage rounded-xs transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>CREATE ENCRYPTED DOCUMENT</span>
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => handleCreateNew("rich_text")}
+                disabled={creating}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-canvas-DEFAULT bg-sage hover:bg-sage-hover border border-sage rounded-xs transition-colors disabled:opacity-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>RICH TEXT</span>
+              </button>
+              <button
+                onClick={() => handleCreateNew("markdown")}
+                disabled={creating}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-ink bg-canvas-subtle hover:bg-canvas-neutral border border-border rounded-xs transition-colors disabled:opacity-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>MARKDOWN</span>
+              </button>
+              <button
+                onClick={() => handleCreateNew("latex")}
+                disabled={creating}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-ink bg-canvas-subtle hover:bg-canvas-neutral border border-border rounded-xs transition-colors disabled:opacity-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>LATEX</span>
+              </button>
+            </div>
           </div>
         ) : filteredDocs.length === 0 ? (
           <div className="border border-border bg-canvas-surface p-8 text-center rounded-xs space-y-2">
