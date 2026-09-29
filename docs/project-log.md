@@ -18,7 +18,8 @@ A living record of the development timeline, key architectural decisions (ADRs),
 | **2026-09-07** | **Pre-Phase 4: Light Technical Brutalism Design Overhaul** | Overhauled UI to a light-themed technical brutalist / Swiss-grid design language. Single 2D canvas, zero artificial depth/shadows, warm neutral & sage color palette, exposed structural grid, geometric radius (0–4px), monospace technical metrics, and flat structural panels. | Completed |
 | **2026-09-29** | **Phase 4: Document Routing & Multi-Style Shell** | Implemented style-picker project creation (Rich Text, Markdown, LaTeX) with format-specific templates, dynamic surface routing in `EditorContainer`, style headers, and content-safe persistence. | Completed |
 | **2026-09-29** | **Phase 4: CodeMirror 6 & Yjs CRDT Binding** | Embedded CodeMirror 6 with syntax highlighting (Markdown GFM, LaTeX sTeX), brutalist UI theme, Yjs CRDT binding via `y-codemirror.next` (`yCollab`), remote cursor awareness, and CRDT snapshot pre-seeding. | Completed |
-| *Upcoming* | **Phase 4: Previews & Compilers** | Markdown live AST preview pane, LaTeX Tier 1 WASM compiler / Tier 2 Local Agent. | In Progress |
+| **2026-09-29** | **Phase 4: Markdown Editing Surface** | Implemented split-pane Markdown surface (`MarkdownEditorSurface.tsx`) with CodeMirror 6, live GFM parsing (`marked`), client-side math rendering (`katex`), formatting toolbar, word/char metrics, and 3-way view toggling (`SPLIT`, `EDITOR`, `PREVIEW`). | Completed |
+| *Upcoming* | **Phase 4: LaTeX Editing Surface & Compilers** | LaTeX CodeMirror editor + PDF preview pane, Tier 1 WASM compiler / Tier 2 Local Agent. | Planned |
 
 ---
 
@@ -133,6 +134,15 @@ A living record of the development timeline, key architectural decisions (ADRs),
   2. *Multi-Language Highlighting:* Configure `@codemirror/lang-markdown` for Markdown documents and `@codemirror/legacy-modes/mode/stex` for LaTeX documents.
   3. *Brutalist Theme:* Restrain editor styling to match the Swiss-grid design system (canvas `#F7F2EB`, border `#D6CEC1`, ink `#252822`, sage selections `#8B9A6E`, monospace JetBrains Mono).
   4. *Snapshot Pre-seeding:* Pre-seed the initial binary CRDT snapshot for newly created Markdown and LaTeX documents in `createDocument` to prevent concurrent insertion duplication on first mount.
+- **Status:** Accepted.
+
+### ADR-020: Client-Side Markdown Parsing with KaTeX Math Protection
+- **Context:** The Markdown editing surface requires real-time GFM HTML rendering and LaTeX math equations ($...$ and $$...$$) while maintaining zero-knowledge client execution without server-side rendering pipelines.
+- **Decision:** Implement client-side parsing pipeline in `MarkdownEditorSurface`:
+  1. *Math Syntax Protection:* Shield inline and block math blocks prior to Markdown parsing with unique placeholder tokens, preventing the Markdown parser from corrupting LaTeX subscripts, underscores, and backslashes into HTML tags.
+  2. *KaTeX Render Pass:* Evaluate math expressions using `katex.renderToString` client-side with graceful fallback (`throwOnError: false`) to prevent editor crashes during incomplete equation input.
+  3. *Responsive 3-Way Panes:* Allow flexible switching between `SPLIT` (50/50 CodeMirror and Preview), `EDITOR` (full-width source focus), and `PREVIEW` (full-width document reading).
+  4. *Technical Brutalist Typography:* Theme Markdown headings, tables, blockquotes, and code elements to match the light technical brutalist aesthetic (canvas surfaces, 1px `#D6CEC1` borders, sage accents `#8B9A6E`).
 - **Status:** Accepted.
 
 ---

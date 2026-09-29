@@ -8,6 +8,7 @@ import { updateDocument, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { cryptoVault } from "@/lib/crypto/vault";
 import { RichTextEditor } from "./RichTextEditor";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
+import { MarkdownEditorSurface } from "./MarkdownEditorSurface";
 import { ShareModal } from "./ShareModal";
 import { UserProfileModal } from "../ui/UserProfileModal";
 import { StatusBadge } from "../ui/StatusBadge";
@@ -362,24 +363,13 @@ export function EditorContainer({ initialDocument }: EditorContainerProps) {
         );
       case "markdown":
         return (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between font-mono text-[11px] text-ink-secondary bg-canvas-surface border border-border px-3 py-1.5 rounded-xs">
-              <span className="flex items-center gap-1.5">
-                <FileCode className="w-3.5 h-3.5 text-sage" />
-                <span className="font-bold text-ink">02 / MARKDOWN SOURCE</span>
-              </span>
-              <span className="text-ink-muted">SYNTAX: COMMONMARK / GFM</span>
-            </div>
-            <CodeMirrorEditor
-              initialContent={typeof content === "string" ? content : ""}
-              contentType="markdown"
-              onChange={handleContentChange}
-              provider={provider}
-              userPresence={currentUser}
-              editable={isEditable}
-              minHeight="550px"
-            />
-          </div>
+          <MarkdownEditorSurface
+            initialContent={typeof content === "string" ? content : ""}
+            onChange={handleContentChange}
+            provider={provider}
+            userPresence={currentUser}
+            editable={isEditable}
+          />
         );
       case "latex":
         return (
